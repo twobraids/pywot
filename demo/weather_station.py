@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from pywot import (
     WoTThing,
     log_config
@@ -15,8 +17,8 @@ import logging
 
 
 class WeatherStation(WoTThing):
-    def __init__(self, name='my_weatherstation', description='a weather station'):
-        super(WeatherStation, self).__init__(name, description)
+    def __init__(self, config, name='my_weatherstation', description='a weather station'):
+        super(WeatherStation, self).__init__(config, name, description)
         # initialize the weather station
         seed(100)
 
@@ -27,7 +29,7 @@ class WeatherStation(WoTThing):
     temperature = WoTThing.wot_property(
         name='temperature',
         initial_value=0,
-        description='the temperature',
+        description='the temperature in F',
         value_source_fn=get_current_temperature,
     )
 
@@ -46,9 +48,14 @@ class WeatherStation(WoTThing):
 def run_server(config):
     logging.debug('run server')
 
-    weather_station = config.weather_station_class()
+    print(config.weather_station_class)
+    weather_station = config.weather_station_class(config)
 
-    server = config.server.wot_server_class([weather_station], port=config.server.service_port)
+    server = config.server.wot_server_class(
+        config,
+        [weather_station],
+        port=config.server.service_port
+    )
     server.run()
 
 
@@ -63,10 +70,22 @@ if __name__ == '__main__':
     )
     required_config.add_option(
         name="weather_station_class",
-        default="demo.weather_station",
+        default=WeatherStation,
         doc="the fully qualified name of the WoT weather station class",
         from_string_converter=class_converter
     )
+    required_config.add_option(
+        'logging_level',
+        doc='log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)',
+        default='DEBUG',
+        from_string_converter=lambda s: getattr(logging, s.upper(), None)
+    )
+    required_config.add_option(
+        'logging_format',
+        doc='format string for logging',
+        default='%(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s',
+    )
+    print ('before configuration')
     config = configuration(required_config)
     logging.basicConfig(
         level=config.logging_level,

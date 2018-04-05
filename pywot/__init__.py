@@ -2,7 +2,7 @@ from webthing import (
     Thing,
     Property,
     Value,
-    WebThingsServer,
+    WebThingServer,
 )
 
 from asyncio import (
@@ -37,6 +37,7 @@ def pytype_as_wottype(example_value):
 
 def create_wot_property(
     thing_instance,
+    *,
     name,
     initial_value,
     description,
@@ -49,7 +50,9 @@ def create_wot_property(
         "type": pytype_as_wottype(initial_value),
         "description": description,
     }
-    property_metadata.update(metadata)
+    if metadata:
+        property_metadata.update(metadata)
+    logging.debug(thing_instance)
     thing_instance.add_property(
         Property(
             thing_instance,
@@ -72,6 +75,7 @@ class WoTThing(Thing, RequiredConfig):
         self.config = config
         super(WoTThing, self).__init__(name, description=description)
         for property_name, create_wot_property_fn in self.class_properties_as_partial.items():
+            logging.debug('creating property %s', property_name)
             create_wot_property_fn(self)
 
     class_properties_as_partial = {}
@@ -91,10 +95,10 @@ class WoTThing(Thing, RequiredConfig):
         # we cannot instantiate the Property yet, just save the parameters in the form of a partial
         kls.class_properties_as_partial[name] = partial(
             create_wot_property,
-            name,
-            initial_value,
-            description,
-            value_source_fn,
+            name=name,
+            initial_value=initial_value,
+            description=description,
+            value_source_fn=value_source_fn,
             ui_setter=ui_setter,
             metadata=metadata
         )
@@ -105,6 +109,7 @@ class WoTThing(Thing, RequiredConfig):
                     await value_source_fn(thing_instance)
                     await sleep(thing_instance.config.seconds_between_polling)
             property_value_task.property_name = name
+            print('setup task {}'.format(name))
             kls.class_property_tasks.append(property_value_task)
         # to allow the thing to access and change its own property
 
@@ -125,34 +130,25 @@ def log_config(config, prefix=''):
             logging.info('%s%s: %s', prefix, key, value)
 
 
-class WoTServer(WebThingsServer, RequiredConfig):
+class WoTServer(WebThingServer, RequiredConfig):
     required_config = Namespace()
     required_config.add_option(
         'service_port',
         doc='a port number for the Web Things Service',
         default=8888
     )
-    required_config.add_option(
-        'logging_level',
-        doc='log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)',
-        default='DEBUG',
-        from_string_converter=lambda s: getattr(logging, s.upper(), None)
-    )
-    required_config.add_option(
-        'logging_format',
-        doc='format string for logging',
-        default='%(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s',
-    )
 
-    def __init__(self, things, name=None, port=80, ssl_options=None):
+    def __init__(self, config, things, name=None, port=80, ssl_options=None):
+        self.config = config
         super(WoTServer, self).__init__(things, name, port, ssl_options)
 
-    def run(self, config):
+    def run(self):
         try:
             io_loop = IOLoop.current().asyncio_loop
             for a_thing in self.things:
+                logging.debug('thing: %s with %s tasks', a_thing.name, len(a_thing.class_property_tasks))
                 for a_task in a_thing.class_property_tasks:
-                    io_loop.create_task(a_task())
+                    io_loop.create_task(a_task(a_thing))
                     logging.debug('created task: %s.%s', a_thing.name, a_task.property_name)
             logging.debug('server.start')
             self.start()
