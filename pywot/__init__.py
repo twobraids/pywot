@@ -4,25 +4,19 @@ from webthing import (
     Value,
     WebThingServer,
 )
-
 from asyncio import (
     Task,
     sleep,
     gather
 )
-from tornado.ioloop import (
-    IOLoop
-)
-
-from functools import partial
-
 from configman import (
     Namespace,
     RequiredConfig
 )
-from collections import (
-    Mapping
-)
+from configman.converters import to_str
+from tornado.ioloop import IOLoop
+from functools import partial
+from collections import Mapping
 import logging
 
 
@@ -52,7 +46,6 @@ def create_wot_property(
     }
     if metadata:
         property_metadata.update(metadata)
-    logging.debug(thing_instance)
     thing_instance.add_property(
         Property(
             thing_instance,
@@ -68,7 +61,7 @@ class WoTThing(Thing, RequiredConfig):
     required_config.add_option(
         'seconds_between_polling',
         doc='the number of seconds between each time polling',
-        default=120
+        default=300
     )
 
     def __init__(self, config, name, description):
@@ -127,7 +120,7 @@ def log_config(config, prefix=''):
         if isinstance(value, Mapping):
             log_config(value, "{}.".format(key))
         else:
-            logging.info('%s%s: %s', prefix, key, value)
+            logging.info('%s%s: %s', prefix, key, to_str(value))
 
 
 class WoTServer(WebThingServer, RequiredConfig):

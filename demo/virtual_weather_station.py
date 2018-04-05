@@ -4,28 +4,22 @@ from pywot import (
     WoTThing,
     log_config
 )
-from asyncio import (
-    CancelledError,
-)
 from configman import (
     configuration,
     Namespace,
     class_converter,
-    RequiredConfig
+    RequiredConfig,
 )
-from aiohttp import (
-    ClientSession
-)
-from async_timeout import (
-    timeout
-)
-from json import (
-    loads
-)
+import asyncio
+import aiohttp
+import async_timeout
+import json
 import logging
 
 
 def create_url(config, local_namespace, args):
+    """generate a URL to fetch local weather data from Weather Underground using
+    configuration data"""
     return "http://api.wunderground.com/api/{}/conditions/q/{}/{}.json".format(
         config.weather_underground_api_key,
         config.state_code,
@@ -38,6 +32,7 @@ class WeatherStation(WoTThing, RequiredConfig):
     required_config.add_option(
         'weather_underground_api_key',
         doc='the api key to access Weather Underground data',
+        short_form="K",
         default="not a real key"
     )
     required_config.add_option(
@@ -50,12 +45,10 @@ class WeatherStation(WoTThing, RequiredConfig):
         doc='the name of the city',
         default="Corvallis",
     )
-
     required_config.add_aggregation(
         'target_url',
         function=create_url
     )
-
     required_config.add_option(
         'seconds_for_timeout',
         doc='the number of seconds to allow for fetching weather data',
@@ -75,13 +68,12 @@ class WeatherStation(WoTThing, RequiredConfig):
 
     async def get_weather_data(self):
         try:
-            async with ClientSession() as session:
-                async with timeout(config.seconds_for_timeout):
+            async with aiohttp.ClientSession() as session:
+                async with async_timeout.timeout(config.seconds_for_timeout):
                     async with session.get(config.target_url) as response:
-                        # we're just awaitng a response before a timeout
-                        # we don't really care what the response is
-                        self.weather_data = loads(await response.text())
-        except CancelledError as e:
+                        self.fallback_weather_data = self.weather_data
+                        self.weather_data = json.loads(await response.text())
+        except asyncio.CancelledError as e:
             raise e
         except Exception as e:
             logging.critical('loading weather data fails: %s', e)
@@ -111,7 +103,6 @@ class WeatherStation(WoTThing, RequiredConfig):
 def run_server(config):
     logging.debug('run server')
 
-    print(config.weather_station_class)
     weather_station = config.weather_station_class(config)
 
     server = config.server.wot_server_class(
@@ -140,7 +131,7 @@ if __name__ == '__main__':
     required_config.add_option(
         'logging_level',
         doc='log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)',
-        default='DEBUG',
+        default='INFO',
         from_string_converter=lambda s: getattr(logging, s.upper(), None)
     )
     required_config.add_option(
