@@ -78,39 +78,39 @@ class RouterMonitor(WoTThing):
     def __init__(self, config, name="ComcastRouter", description="a long way away"):
         super(RouterMonitor, self).__init__(config, name, description)
 
-        async def is_the_router_ok(self):
-            logging.debug('executing is_the_router_ok')
-            try:
-                async with ClientSession() as session:
-                    async with timeout(config.seconds_for_timeout):
-                        async with session.get(config.target_url) as response:
-                            # we're just awaitng a response before a timeout
-                            # we don't really care what the response is
-                            await response.text()
-                            return True
-            except CancelledError as e:
-                logging.debug('is_the_router_ok shutdown')
-                raise e
-            except Exception:
-                logging.debug("can't read external Website")
-                self.router_ok = False
-                return False
+    async def is_the_router_ok(self):
+        logging.debug('executing is_the_router_ok')
+        try:
+            async with ClientSession() as session:
+                async with timeout(config.seconds_for_timeout):
+                    async with session.get(config.target_url) as response:
+                        # we're just awaitng a response before a timeout
+                        # we don't really care what the response is
+                        await response.text()
+                        return True
+        except CancelledError as e:
+            logging.debug('is_the_router_ok shutdown')
+            raise e
+        except Exception:
+            logging.debug("can't read external Website")
+            self.router_ok = False
+            return False
 
-        async def is_router_ok_polling_task(self):
-            while True:
+    async def is_router_ok_polling_task(self):
+        while True:
 
-                if await self.is_the_router_ok():
-                    logging.debug('sleep between tests for %s seconds', config.seconds_between_tests)
-                    await sleep(config.seconds_between_tests)
-                else:
-                    logging.debug('leave service off for %s seconds', config.seconds_to_leave_router_off)
-                    await sleep(config.seconds_to_leave_router_off)
-                    self.router_ok = True
-                    logging.debug(
-                        'allow time for service to restart for %s seconds before testing begins again',
-                        config.seconds_to_restore_router
-                    )
-                    await sleep(config.seconds_to_restore_router)
+            if await self.is_the_router_ok():
+                logging.debug('sleep between tests for %s seconds', config.seconds_between_tests)
+                await sleep(config.seconds_between_tests)
+            else:
+                logging.debug('leave service off for %s seconds', config.seconds_to_leave_router_off)
+                await sleep(config.seconds_to_leave_router_off)
+                self.router_ok = True
+                logging.debug(
+                    'allow time for service to restart for %s seconds before testing begins again',
+                    config.seconds_to_restore_router
+                )
+                await sleep(config.seconds_to_restore_router)
 
         router_ok = WoTThing.wot_property(
             name="router_ok",
