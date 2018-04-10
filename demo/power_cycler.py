@@ -74,75 +74,50 @@ required_config.add_option(
 )
 
 
-class RouterDownEvent(Event):
-    def __init__(self, thing, data):
-        super(RouterDownEvent, self).__init__(thing, 'router_down', data=data)
+class RouterMonitor(WoTThing):
+    def __init__(self, config, name="ComcastRouter", description="a long way away"):
+        super(RouterMonitor, self).__init__(config, name, description)
 
+        async def is_the_router_ok(self):
+            logging.debug('executing is_the_router_ok')
+            try:
+                async with ClientSession() as session:
+                    async with timeout(config.seconds_for_timeout):
+                        async with session.get(config.target_url) as response:
+                            # we're just awaitng a response before a timeout
+                            # we don't really care what the response is
+                            await response.text()
+                            return True
+            except CancelledError as e:
+                logging.debug('is_the_router_ok shutdown')
+                raise e
+            except Exception:
+                logging.debug("can't read external Website")
+                self.router_ok = False
+                return False
 
-class RestartRouterEvent(Event):
-    def __init__(self, thing, data):
-        super(RestartRouterEvent, self).__init__(thing, 'restart_router', data=data)
+        async def is_router_ok_polling_task(self):
+            while True:
 
+                if await self.is_the_router_ok():
+                    logging.debug('sleep between tests for %s seconds', config.seconds_between_tests)
+                    await sleep(config.seconds_between_tests)
+                else:
+                    logging.debug('leave service off for %s seconds', config.seconds_to_leave_router_off)
+                    await sleep(config.seconds_to_leave_router_off)
+                    self.router_ok = True
+                    logging.debug(
+                        'allow time for service to restart for %s seconds before testing begins again',
+                        config.seconds_to_restore_router
+                    )
+                    await sleep(config.seconds_to_restore_router)
 
-class RouterPowerCycler(Thing):
-    def __init__(self, config):
-        self.config = config
-        super(RouterPowerCycler, self).__init__(
-            name='router_power_cycler',
-            description='a Linux service as a Web Thing'
+        router_ok = WoTThing.wot_property(
+            name="router_ok",
+            initial_value=True,
+            description="boolean value indication the state of the router",
+            value_source_fn=is_router_ok_polling_task()
         )
-        self.add_available_event(
-            "router_down",
-            {
-                "description": "the router is down",
-                "type": "boolean"
-            }
-        )
-        self.add_available_event(
-            "restart_router",
-            {
-                "description": "the router should restart",
-                "type": "boolean"
-            }
-        )
-
-        self.router_up = True
-
-    async def hit_target_url(self):
-        logging.debug('executing hit_target_url')
-        try:
-            async with ClientSession() as session:
-                async with timeout(config.seconds_for_timeout):
-                    async with session.get(config.target_url) as response:
-                        # we're just awaitng a response before a timeout
-                        # we don't really care what the response is
-                        await response.text()
-        except CancelledError as e:
-            logging.debug('hit_target_url shutdown')
-            raise e
-        except Exception:
-            logging.debug('target error')
-            self.router_up = False
-
-    async def monitor_router(self):
-        while True:
-            await self.hit_target_url()
-            if self.router_up:
-                logging.debug('sleep between tests for %s seconds', config.seconds_between_tests)
-                await sleep(config.seconds_between_tests)
-                continue
-            logging.debug('add TargetDown')
-            self.add_event(RouterDownEvent(self, True))
-            logging.debug('leave service off for %s seconds', config.seconds_to_leave_router_off)
-            await sleep(config.seconds_to_leave_router_off)
-            logging.debug('add RestartTarget')
-            self.add_event(RestartRouterEvent(self, True))
-            logging.debug(
-                'allow time for service to restart for %s seconds',
-                config.seconds_to_restore_router
-            )
-            await sleep(config.seconds_to_restore_router)
-            self.router_up = True
 
 
 def log_config(config, prefix=''):
