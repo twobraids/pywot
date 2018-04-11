@@ -38,12 +38,12 @@ def create_wot_property(
     initial_value,
     description,
     value_source_fn=None,
-    ui_setter=None,
+    value_forwarder=None,
     metadata=None
 ):
     """Is effectively an unbound method of the WoTThing class.  It is used to add a new Thing
     Property to an intializing instance of a WoTThing."""
-    value = Value(initial_value, setter=ui_setter)
+    value = Value(initial_value, value_forwarder=value_forwarder)
     property_metadata = {
         "type": pytype_as_wottype(initial_value),
         "description": description,
@@ -96,7 +96,7 @@ class WoTThing(Thing, RequiredConfig):
         initial_value,
         description,
         value_source_fn=None,
-        ui_setter=None,
+        value_forwarder=None,
         metadata=None
     ):
         # WoT Properties must be instantiated when the Thing is instantiated.  Since this code runs
@@ -109,7 +109,7 @@ class WoTThing(Thing, RequiredConfig):
             initial_value=initial_value,
             description=description,
             value_source_fn=value_source_fn,
-            ui_setter=ui_setter,
+            value_forwarder=value_forwarder,
             metadata=metadata
         )
         if value_source_fn is not None:
