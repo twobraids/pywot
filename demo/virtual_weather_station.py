@@ -87,6 +87,12 @@ class WeatherStation(WoTThing, RequiredConfig):
         self.temperature = self.weather_data['current_observation']['temp_f']
         self.barometric_pressure = self.weather_data['current_observation']['pressure_in']
         self.wind_speed = self.weather_data['current_observation']['wind_mph']
+        logging.debug(
+            'new values fetched: %s, %s, %s',
+            self.temperature,
+            self.barometric_pressure,
+            self.wind_speed
+        )
 
     temperature = WoTThing.wot_property(
         name='temperature',
