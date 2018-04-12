@@ -17,38 +17,46 @@ import logging
 
 
 class WeatherStation(WoTThing):
-    def __init__(self, config, name='my_weatherstation', description='a weather station'):
-        super(WeatherStation, self).__init__(config, name, description)
+    def __init__(
+        self,
+        config,
+        name='my_weatherstation',
+        type_='thing',
+        description='a weather station'
+    ):
+        super(WeatherStation, self).__init__(config, name, type_, description)
         # initialize the weather station
         seed(100)
 
     async def get_current_temperature(self):
         # do whatever it takes to get current temperature
         self.temperature = randint(40, 80)
+        self.barometic_pressure = randint(290, 310) / 10.0
+        logging.debug('fetched new values: %, %', self.temperature, self.barometic_pressure)
 
     temperature = WoTThing.wot_property(
         name='temperature',
         initial_value=0,
-        description='the temperature in F',
+        description='the temperature in ℉',
         value_source_fn=get_current_temperature,
+        metadata={
+            'units': '℉'
+        }
     )
-
-    async def get_current_pressure(self):
-        # do whatever it takes to get current pressure
-        self.pressure = randint(290, 310) / 10.0
 
     barometic_pressure = WoTThing.wot_property(
         name='barometric_pressure',
         initial_value=30,
         description='the air pressure in inches',
-        value_source_fn=get_current_pressure,
+        metadata={
+            'units': 'in'
+        }
     )
 
 
 def run_server(config):
     logging.debug('run server')
 
-    print(config.weather_station_class)
     weather_station = config.weather_station_class(config)
 
     server = config.server.wot_server_class(
@@ -85,11 +93,11 @@ if __name__ == '__main__':
         doc='format string for logging',
         default='%(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s',
     )
-    print ('before configuration')
     config = configuration(required_config)
     logging.basicConfig(
         level=config.logging_level,
         format=config.logging_format
     )
     log_config(config)
+
     run_server(config)

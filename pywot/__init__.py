@@ -73,9 +73,9 @@ class WoTThing(Thing, RequiredConfig):
         default=300
     )
 
-    def __init__(self, config, name, description):
+    def __init__(self, config, name, type_, description):
         self.config = config
-        super(WoTThing, self).__init__(name, description=description)
+        super(WoTThing, self).__init__(name, type_, description=description)
         # instantiate the WoT Properties by iterating through and executing the partial functions
         # associated with each
         for property_name, create_wot_property_fn in self.wot_property_functions.items():

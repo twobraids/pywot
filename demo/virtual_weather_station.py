@@ -55,8 +55,14 @@ class WeatherStation(WoTThing, RequiredConfig):
         default=10
     )
 
-    def __init__(self, config, name='my_weatherstation', description='a weather station'):
-        super(WeatherStation, self).__init__(config, name, description)
+    def __init__(
+        self,
+        config,
+        name='my_weatherstation',
+        type_='thing',
+        description='a weather station'
+    ):
+        super(WeatherStation, self).__init__(config, name, type_, description)
         self.fallback_weather_data = {
             'current_observation': {
                 'temp_f': 0,
@@ -85,18 +91,27 @@ class WeatherStation(WoTThing, RequiredConfig):
     temperature = WoTThing.wot_property(
         name='temperature',
         initial_value=0,
-        description='the temperature in F',
+        description='the temperature in ℉',
         value_source_fn=get_weather_data,
+        metadata = {
+            'units': '℉'
+        }
     )
     barometic_pressure = WoTThing.wot_property(
         name='barometric_pressure',
         initial_value=30,
         description='the air pressure in inches',
+        metadata={
+            'units': 'in'
+        }
     )
     wind_speed = WoTThing.wot_property(
         name='wind_speed',
         initial_value=30,
         description='the wind speed in mph',
+        metadata={
+            'units': 'mph'
+        }
     )
 
 
