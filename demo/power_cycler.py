@@ -1,8 +1,7 @@
 #!/usr/bin/python3
 
-from webthing import (
-    Event,
-    Thing,
+from wot import (
+    WoTThing,
     WebThingServer
 )
 from asyncio import (
@@ -98,26 +97,25 @@ class RouterMonitor(WoTThing):
 
     async def is_router_ok_polling_task(self):
         while True:
-
             if await self.is_the_router_ok():
                 logging.debug('sleep between tests for %s seconds', config.seconds_between_tests)
                 await sleep(config.seconds_between_tests)
             else:
-                logging.debug('leave service off for %s seconds', config.seconds_to_leave_router_off)
+                logging.debug('turn the router off for %s seconds', config.seconds_to_leave_router_off)
                 await sleep(config.seconds_to_leave_router_off)
-                self.router_ok = True
                 logging.debug(
                     'allow time for service to restart for %s seconds before testing begins again',
                     config.seconds_to_restore_router
                 )
                 await sleep(config.seconds_to_restore_router)
+                self.router_ok = True
 
-        router_ok = WoTThing.wot_property(
-            name="router_ok",
-            initial_value=True,
-            description="boolean value indication the state of the router",
-            value_source_fn=is_router_ok_polling_task()
-        )
+    router_ok = WoTThing.wot_property(
+        name="router_ok",
+        initial_value=True,
+        description="boolean value indication the state of the router",
+        value_source_fn=is_router_ok_polling_task()
+    )
 
 
 def log_config(config, prefix=''):
@@ -131,7 +129,7 @@ def log_config(config, prefix=''):
 def run_server(config):
     logging.debug('run server')
 
-    router_power_cycler = RouterPowerCycler(config)
+    router_power_cycler = RouterMonitor(config)
 
     server = WebThingServer([router_power_cycler], port=config.service_port)
     try:

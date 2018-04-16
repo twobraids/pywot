@@ -1,5 +1,21 @@
 #!/usr/bin/env python3
 
+"""This Web Thing implements a virtual weather station using data from Weather Underground.
+It exposes temperature, barometric pressure and wind speed in three properties that can be
+used as the basis for rules in the Things Gateway.
+
+To use this Web Thing, a developer API key must be acquired from Weather Underground at this URL:
+https://www.wunderground.com/weather/api/d/pricing.html
+
+I use the Developer version of the Cumulus Plan which allows for 500 API hits for a cost of 0$.
+That translates to fetching weather data every three minutes.
+
+Once the app is running, --help will give a complete listing of the options.  Alternatively,
+running with the option --admin.dump_conf=my_config.ini  will create an ini file that then
+can be edited to set the parameters.  Thereafter, running with --admin.conf=my_config.ini will
+load configuration from the file.
+"""
+
 from pywot import (
     WoTThing,
     log_config
@@ -96,16 +112,16 @@ class WeatherStation(WoTThing, RequiredConfig):
 
     temperature = WoTThing.wot_property(
         name='temperature',
-        initial_value=0,
+        initial_value=0.0,
         description='the temperature in ℉',
         value_source_fn=get_weather_data,
-        metadata = {
+        metadata={
             'units': '℉'
         }
     )
     barometic_pressure = WoTThing.wot_property(
         name='barometric_pressure',
-        initial_value=30,
+        initial_value=30.0,
         description='the air pressure in inches',
         metadata={
             'units': 'in'
@@ -113,7 +129,7 @@ class WeatherStation(WoTThing, RequiredConfig):
     )
     wind_speed = WoTThing.wot_property(
         name='wind_speed',
-        initial_value=30,
+        initial_value=30.0,
         description='the wind speed in mph',
         metadata={
             'units': 'mph'

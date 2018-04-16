@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+"""This web thing has three properites that cycle back and forth between
+(0, 0, 0) and (1, 2, 3) for a configurable number of seconds. It is useful
+for testing Things Gateway rules."""
+
 from pywot import (
     WoTThing,
     log_config
