@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
 """This web thing has three properites that cycle back and forth between
-(0, 0, 0) and (1, 2, 3) for a configurable number of seconds. It is useful
+True and False for a configurable number of seconds. It is useful
 for testing Things Gateway rules."""
 
 from pywot import (
     WoTThing,
+    WoTServer,
+    logging_config,
     log_config
 )
 from configman import (
@@ -17,36 +19,18 @@ import logging
 
 
 class Thumper(WoTThing):
-    def __init__(
-        self,
-        config,
-        name='the thumper',
-        type_='thing',
-        description='a thumper'
-    ):
-        super(Thumper, self).__init__(config, name, type_, description)
+    def __init__(self, config):
+        super(Thumper, self).__init__(config, "the thumper", "thing", "a thumper")
 
-    async def get_next_values(self):
-        self.thump1 = int(not self.thump1)
-        self.thump2 = int(not self.thump2) * 2
-        self.thump3 = int(not self.thump3) * 3
-        logging.debug('fetched new values: %s, %s, %s', self.thump1, self.thump2, self.thump3)
+    async def get_next_value(self):
+        self.thump = not self.thump
+        logging.debug('fetched new value: %s', self.thump)
 
-    thump1 = WoTThing.wot_property(
-        name='thump1',
-        initial_value=0,
-        description='thump1',
-        value_source_fn=get_next_values,
-    )
-    thump2 = WoTThing.wot_property(
-        name='thump2',
-        initial_value=0,
-        description='thump2',
-    )
-    thump3 = WoTThing.wot_property(
-        name='thump3',
-        initial_value=0,
-        description='thump3',
+    thump = WoTThing.wot_property(
+        name='thump',
+        initial_value=True,
+        description='thump',
+        value_source_fn=get_next_value,
     )
 
 
@@ -66,29 +50,10 @@ def run_server(config):
 if __name__ == '__main__':
     required_config = Namespace()
     required_config.server = Namespace()
-    required_config.server.add_option(
-        name='wot_server_class',
-        default="pywot.WoTServer",
-        doc="the fully qualified name of the WoT Server class",
-        from_string_converter=class_converter
-    )
-    required_config.add_option(
-        name="thumper_class",
-        default=Thumper,
-        doc="the fully qualified name of the Thumper class",
-        from_string_converter=class_converter
-    )
-    required_config.add_option(
-        'logging_level',
-        doc='log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)',
-        default='DEBUG',
-        from_string_converter=lambda s: getattr(logging, s.upper(), None)
-    )
-    required_config.add_option(
-        'logging_format',
-        doc='format string for logging',
-        default='%(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s',
-    )
+    required_config.server.update(WoTServer.get_required_config())
+    required_config.update(Thumper.get_required_config())
+    required_config.seconds_between_polling.default = 10
+    required_config.update(logging_config)
     config = configuration(required_config)
     logging.basicConfig(
         level=config.logging_level,
@@ -96,4 +61,7 @@ if __name__ == '__main__':
     )
     log_config(config)
 
-    run_server(config)
+    thumper = Thumper(config)
+
+    server = WoTServer(config, [thumper], port=config.server.service_port)
+    server.run()

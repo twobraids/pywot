@@ -16,8 +16,15 @@ can be edited to set the parameters.  Thereafter, running with --admin.conf=my_c
 load configuration from the file.
 """
 
+import asyncio
+import aiohttp
+import async_timeout
+import json
+import logging
+
 from pywot import (
     WoTThing,
+    logging_config,
     log_config
 )
 from configman import (
@@ -26,11 +33,6 @@ from configman import (
     class_converter,
     RequiredConfig,
 )
-import asyncio
-import aiohttp
-import async_timeout
-import json
-import logging
 
 
 def create_url(config, local_namespace, args):
@@ -71,35 +73,32 @@ class WeatherStation(WoTThing, RequiredConfig):
         default=10
     )
 
-    def __init__(
-        self,
-        config,
-        name='my_weatherstation',
-        type_='thing',
-        description='a weather station'
-    ):
-        super(WeatherStation, self).__init__(config, name, type_, description)
-        self.fallback_weather_data = {
+    def __init__(self, config):
+        super(WeatherStation, self).__init__(
+            config,
+            "my weatherstation",
+            "thing",
+            "my weather station with data for {}, {}".format(config.city_name, config.state_code)
+        )
+        self.weather_data = {
             'current_observation': {
-                'temp_f': 0,
-                'pressure_in': 0,
-                'wind_mph': 0,
+                'temp_f': self.temperature,
+                'pressure_in': self.barometric_pressure,
+                'wind_mph': self.wind_speed,
             }
         }
-        self.weather_data = {}
 
     async def get_weather_data(self):
         try:
             async with aiohttp.ClientSession() as session:
                 async with async_timeout.timeout(config.seconds_for_timeout):
                     async with session.get(config.target_url) as response:
-                        self.fallback_weather_data = self.weather_data
                         self.weather_data = json.loads(await response.text())
-        except asyncio.CancelledError as e:
-            raise e
         except Exception as e:
             logging.critical('loading weather data fails: %s', e)
-            self.weather_data = self.fallback_weather_data
+            if isinstance(e, asyncio.CancelledError):
+                # we want an app shutdown exception to propagate
+                raise e
         self.temperature = self.weather_data['current_observation']['temp_f']
         self.barometric_pressure = self.weather_data['current_observation']['pressure_in']
         self.wind_speed = self.weather_data['current_observation']['wind_mph']
@@ -119,7 +118,7 @@ class WeatherStation(WoTThing, RequiredConfig):
             'units': '℉'
         }
     )
-    barometic_pressure = WoTThing.wot_property(
+    barometric_pressure = WoTThing.wot_property(
         name='barometric_pressure',
         initial_value=30.0,
         description='the air pressure in inches',
@@ -136,20 +135,6 @@ class WeatherStation(WoTThing, RequiredConfig):
         }
     )
 
-
-def run_server(config):
-    logging.debug('run server')
-
-    weather_station = config.weather_station_class(config)
-
-    server = config.server.wot_server_class(
-        config,
-        [weather_station],
-        port=config.server.service_port
-    )
-    server.run()
-
-
 if __name__ == '__main__':
     required_config = Namespace()
     required_config.server = Namespace()
@@ -165,22 +150,20 @@ if __name__ == '__main__':
         doc="the fully qualified name of the WoT weather station class",
         from_string_converter=class_converter
     )
-    required_config.add_option(
-        'logging_level',
-        doc='log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)',
-        default='INFO',
-        from_string_converter=lambda s: getattr(logging, s.upper(), None)
-    )
-    required_config.add_option(
-        'logging_format',
-        doc='format string for logging',
-        default='%(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s',
-    )
-
+    required_config.update(logging_config)
     config = configuration(required_config)
+
     logging.basicConfig(
         level=config.logging_level,
         format=config.logging_format
     )
     log_config(config)
-    run_server(config)
+
+    weather_station = config.weather_station_class(config)
+
+    server = config.server.wot_server_class(
+        config,
+        [weather_station],
+        port=config.server.service_port
+    )
+    server.run()

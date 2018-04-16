@@ -179,6 +179,19 @@ class WoTServer(WebThingServer, RequiredConfig):
             self.stop()
 
 
+logging_config = Namespace()
+logging_config.add_option(
+    'logging_level',
+    doc='log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)',
+    default='DEBUG',
+    from_string_converter=lambda s: getattr(logging, s.upper(), None)
+)
+logging_config.add_option(
+    'logging_format',
+    doc='format string for logging',
+    default='%(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s',
+)
+
 def log_config(config, prefix=''):
     for key, value in config.items():
         if isinstance(value, Mapping):
