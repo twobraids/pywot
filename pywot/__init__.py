@@ -169,8 +169,8 @@ class WoTServer(WebThingServer, RequiredConfig):
             self.start()
         except KeyboardInterrupt:
             logging.debug('stop signal received')
-            # when stopping the server, we need to halt any tasks pending from the
-            # method 'monitor_router'. Gather them together and cancel them en masse.
+            # when stopping the server, we need to halt any tasks pending from any
+            # asynchronous methods. Gather them together and cancel them en masse.
             pending_tasks_in_a_group = gather(*Task.all_tasks(), return_exceptions=True)
             pending_tasks_in_a_group.cancel()
             # let the io_loop run until the all the tasks complete their cancelation
