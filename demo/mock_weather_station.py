@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
+import logging
 from pywot import (
     WoTThing,
+    logging_config,
     log_config
 )
 from configman import (
@@ -13,58 +15,56 @@ from random import (
     randint,
     seed
 )
-import logging
 
 
 class WeatherStation(WoTThing):
-    def __init__(
-        self,
-        config,
-        name='my_weatherstation',
-        type_='thing',
-        description='a weather station'
-    ):
-        super(WeatherStation, self).__init__(config, name, type_, description)
+    def __init__(self, config):
+        super(WeatherStation, self).__init__(
+            config,
+            "my weatherstation",
+            "thing",
+            "my weather station"
+        )
         # initialize the weather station
         seed(100)
 
-    async def get_current_temperature(self):
-        # do whatever it takes to get current temperature
+    async def get_weather_data(self):
+        # do whatever it takes to get current temperature, pressure and wind speed
         self.temperature = randint(40, 80)
         self.barometic_pressure = randint(290, 310) / 10.0
-        logging.debug('fetched new values: %, %', self.temperature, self.barometic_pressure)
+        self.wind_speed = randint(0, 25)
+        logging.debug(
+            'new values fetched: %s, %s, %s',
+            self.temperature,
+            self.barometric_pressure,
+            self.wind_speed
+        )
 
     temperature = WoTThing.wot_property(
         name='temperature',
-        initial_value=0,
+        initial_value=0.0,
         description='the temperature in ℉',
-        value_source_fn=get_current_temperature,
+        value_source_fn=get_weather_data,
         metadata={
             'units': '℉'
         }
     )
-
-    barometic_pressure = WoTThing.wot_property(
+    barometric_pressure = WoTThing.wot_property(
         name='barometric_pressure',
-        initial_value=30,
+        initial_value=30.0,
         description='the air pressure in inches',
         metadata={
             'units': 'in'
         }
     )
-
-
-def run_server(config):
-    logging.debug('run server')
-
-    weather_station = config.weather_station_class(config)
-
-    server = config.server.wot_server_class(
-        config,
-        [weather_station],
-        port=config.server.service_port
+    wind_speed = WoTThing.wot_property(
+        name='wind_speed',
+        initial_value=30.0,
+        description='the wind speed in mph',
+        metadata={
+            'units': 'mph'
+        }
     )
-    server.run()
 
 
 if __name__ == '__main__':
@@ -82,22 +82,20 @@ if __name__ == '__main__':
         doc="the fully qualified name of the WoT weather station class",
         from_string_converter=class_converter
     )
-    required_config.add_option(
-        'logging_level',
-        doc='log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)',
-        default='DEBUG',
-        from_string_converter=lambda s: getattr(logging, s.upper(), None)
-    )
-    required_config.add_option(
-        'logging_format',
-        doc='format string for logging',
-        default='%(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s',
-    )
+    required_config.update(logging_config)
     config = configuration(required_config)
+
     logging.basicConfig(
         level=config.logging_level,
         format=config.logging_format
     )
     log_config(config)
 
-    run_server(config)
+    weather_station = config.weather_station_class(config)
+
+    server = config.server.wot_server_class(
+        config,
+        [weather_station],
+        port=config.server.service_port
+    )
+    server.run()

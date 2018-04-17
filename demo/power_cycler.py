@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import logging
-from collections import Mapping
-from tornado.ioloop import IOLoop
 from aiohttp import ClientSession
 from async_timeout import timeout
 from pywot import (
@@ -12,7 +10,6 @@ from pywot import (
     log_config
 )
 from asyncio import (
-    Task,
     CancelledError,
     sleep,
 )
@@ -105,4 +102,3 @@ if __name__ == '__main__':
     router_power_cycler = RouterMonitor(config)
     server = WoTServer(config, [router_power_cycler], port=config.server.service_port)
     server.run()
-
