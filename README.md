@@ -31,7 +31,7 @@ syntax:
 ```python
 my_weather_station.temperature = 32
 # instead of using the webthing.Thing API directly:
-my_weather_station.get_thing().get_property('temperature').value.notify_of_external_update(32)
+my_weather_station.get_thing().properties['temperature'].value.notify_of_external_update(32)
 ```
 Derived classes also get an automatically generated asynchronous polling loop to fetch a value from some external source.
 The derived class only needs to define an asynchronous method to fetch the value once and pass it to the 
