@@ -31,7 +31,6 @@ from configman import (
     configuration,
     Namespace,
     class_converter,
-    RequiredConfig,
 )
 
 
@@ -45,7 +44,7 @@ def create_url(config, local_namespace, args):
     )
 
 
-class WeatherStation(WoTThing, RequiredConfig):
+class WeatherStation(WoTThing):
     required_config = Namespace()
     required_config.add_option(
         'weather_underground_api_key',
