@@ -1,4 +1,4 @@
-# Python Web of Things Wrapper
+# Python Web Thing Wrapper
 
 The `webthing` module, associtated with the Things Gateway from Mozilla, is a
 Python 3 module implementing the Web of Things (WoT) API.  It enables Python
