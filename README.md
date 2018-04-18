@@ -29,9 +29,10 @@ This project may not be maintained beyond my blog posts that use it as an exampl
 An object derived from the base class `webthing.Thing` representing a device or virtual device. As a class, it provides services for further derived classes, focusing on reconciling `webthing.Properties` with the Python `property` method. Further derived classes may define Properties at class load time rather than during object initialization time. This facilitates modification of property values by simplifying the
 syntax:
 ```python
-my_weather_station.temperature = 32
-# instead of using the webthing.Thing API directly:
+# using the webthing API directly:
 my_weather_station.get_thing().properties['temperature'].value.notify_of_external_update(32)
+# the same thing using the pywot API
+my_weather_station.temperature = 32
 ```
 Derived classes also get an automatically generated asynchronous polling loop to fetch a value from some external source.
 The derived class only needs to define an asynchronous method to fetch the value once and pass it to the 
