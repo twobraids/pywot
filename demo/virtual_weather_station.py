@@ -134,6 +134,7 @@ class WeatherStation(WoTThing):
         }
     )
 
+
 if __name__ == '__main__':
     required_config = Namespace()
     required_config.server = Namespace()

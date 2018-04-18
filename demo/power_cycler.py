@@ -41,6 +41,7 @@ class RouterMonitor(WoTThing):
         doc='the number of seconds required to power up the router',
         default=90
     )
+
     def __init__(self, config):
         super(RouterMonitor, self).__init__(
             config,

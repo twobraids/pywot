@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""This web thing has three properites that cycle back and forth between
+"""This web thing a properity that cycles back and forth between
 True and False for a configurable number of seconds. It is useful
 for testing Things Gateway rules."""
 
@@ -13,7 +13,6 @@ from pywot import (
 from configman import (
     configuration,
     Namespace,
-    class_converter
 )
 import logging
 
