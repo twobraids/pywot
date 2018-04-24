@@ -62,6 +62,11 @@ class WeatherStation(WoTThing):
         doc='the name of the city',
         default="Corvallis",
     )
+    required_config.add_option(
+        'name',
+        doc='the name of this weather station',
+        default="my weather station",
+    )
     required_config.add_aggregation(
         'target_url',
         function=create_url
@@ -75,7 +80,7 @@ class WeatherStation(WoTThing):
     def __init__(self, config):
         super(WeatherStation, self).__init__(
             config,
-            "my weatherstation",
+            config.name,
             "thing",
             "my weather station with data for {}, {}".format(config.city_name, config.state_code)
         )

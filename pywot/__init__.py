@@ -121,7 +121,16 @@ class WoTThing(Thing, RequiredConfig):
             # list.
             async def a_property_fetching_task(thing_instance):
                 while True:
-                    await value_source_fn(thing_instance)
+                    try:
+                        await value_source_fn(thing_instance)
+                    except Exception as e:
+                        logging.critical('loading weather data fails: %s', e)
+                        # we'll be optimistic and prefer to retry if something goes wrong.
+                        # while graceful falure is to be commended, there is also great value
+                        # in spontaneous recovery.
+                        if isinstance(e, asyncio.CancelledError):
+                            # we want an app shutdown exception to propagate
+                            raise e
                     await sleep(thing_instance.config.seconds_between_polling)
             # since there may be more that one `a_property_fetching_task`, it gets tagged
             # so that we can get more helpful debugging and logging information
