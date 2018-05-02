@@ -103,3 +103,4 @@ if __name__ == '__main__':
     router_power_cycler = RouterMonitor(config)
     server = WoTServer(config, [router_power_cycler], port=config.server.service_port)
     server.run()
+    logging.debug('done.')

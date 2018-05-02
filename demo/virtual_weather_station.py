@@ -16,7 +16,6 @@ can be edited to set the parameters.  Thereafter, running with --admin.conf=my_c
 load configuration from the file.
 """
 
-import asyncio
 import aiohttp
 import async_timeout
 import json
@@ -93,16 +92,10 @@ class WeatherStation(WoTThing):
         }
 
     async def get_weather_data(self):
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with async_timeout.timeout(config.seconds_for_timeout):
-                    async with session.get(config.target_url) as response:
-                        self.weather_data = json.loads(await response.text())
-        except Exception as e:
-            logging.critical('loading weather data fails: %s', e)
-            if isinstance(e, asyncio.CancelledError):
-                # we want an app shutdown exception to propagate
-                raise e
+        async with aiohttp.ClientSession() as session:
+            async with async_timeout.timeout(config.seconds_for_timeout):
+                async with session.get(config.target_url) as response:
+                    self.weather_data = json.loads(await response.text())
         self.temperature = self.weather_data['current_observation']['temp_f']
         self.barometric_pressure = self.weather_data['current_observation']['pressure_in']
         self.wind_speed = self.weather_data['current_observation']['wind_mph']
@@ -172,3 +165,4 @@ if __name__ == '__main__':
         port=config.server.service_port
     )
     server.run()
+    logging.debug('done.')

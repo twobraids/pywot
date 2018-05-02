@@ -99,3 +99,4 @@ if __name__ == '__main__':
         port=config.server.service_port
     )
     server.run()
+    logging.debug('done.')

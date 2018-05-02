@@ -7,14 +7,14 @@ from webthing import (
 from asyncio import (
     Task,
     sleep,
-    gather
+    gather,
+    get_event_loop
 )
 from configman import (
     Namespace,
     RequiredConfig
 )
 from configman.converters import to_str
-from tornado.ioloop import IOLoop
 from functools import partial
 from collections import Mapping
 import logging
@@ -43,7 +43,11 @@ def create_wot_property(
 ):
     """Is effectively an unbound method of the WoTThing class.  It is used to add a new Thing
     Property to an intializing instance of a WoTThing."""
-    value = Value(initial_value, value_forwarder=value_forwarder)
+    logging.debug('initial_value %s', initial_value)
+    if value_forwarder is None:
+        value = Value(initial_value)
+    else:
+        value = Value(initial_value, value_forwarder=partial(value_forwarder, thing_instance))
     property_metadata = {
         "type": pytype_as_wottype(initial_value),
         "description": description,
@@ -86,7 +90,7 @@ class WoTThing(Thing, RequiredConfig):
     wot_property_functions = {}
     # a list of asynchronous methods that can fetch values for each of the properties from
     # whatever underlying (virtual) mechanism embodies the semantic meaning of the properties
-    property_fetching_tasks = []
+    property_fetching_coroutines = []
 
     @classmethod
     def wot_property(
@@ -117,25 +121,25 @@ class WoTThing(Thing, RequiredConfig):
             # async loop to poll for the values.  We define it here as a closure over that
             # the `value_source_fn`.  Since it will be executed only after instantiation
             # and the first parameter is an instance of Thing, we're effectively making a new
-            # instance method.  We save the closure function in the `property_fetching_tasks`
+            # instance method.  We save the closure function in the `property_fetching_coroutines`
             # list.
-            async def a_property_fetching_task(thing_instance):
+            async def a_property_fetching_coroutine(thing_instance):
                 while True:
                     try:
                         await value_source_fn(thing_instance)
+                    except asyncio.CancelledError as e:
+                        break
                     except Exception as e:
                         logging.critical('loading weather data fails: %s', e)
                         # we'll be optimistic and prefer to retry if something goes wrong.
                         # while graceful falure is to be commended, there is also great value
                         # in spontaneous recovery.
-                        if isinstance(e, asyncio.CancelledError):
-                            # we want an app shutdown exception to propagate
-                            raise e
                     await sleep(thing_instance.config.seconds_between_polling)
+
             # since there may be more that one `a_property_fetching_task`, it gets tagged
             # so that we can get more helpful debugging and logging information
-            a_property_fetching_task.property_name = name
-            kls.property_fetching_tasks.append(a_property_fetching_task)
+            a_property_fetching_coroutine.property_name = name
+            kls.property_fetching_coroutines.append(a_property_fetching_coroutine)
 
         # Finally, we make a getter and setter for the WoT Property so that we can access
         # and modify the value of the property using normal Python property syntax.
@@ -161,29 +165,50 @@ class WoTServer(WebThingServer, RequiredConfig):
     def __init__(self, config, things, name=None, port=80, ssl_options=None):
         self.config = config
         super(WoTServer, self).__init__(things, name, port, ssl_options)
+        self._set_of_all_thing_tasks = set()
+
+    def _create_and_start_all_thing_tasks(self):
+        # create the async polling tasks for each Thing's properties
+        io_loop = get_event_loop()
+        for a_thing in self.things:
+            logging.debug(
+                '    thing: %s with %s tasks',
+                a_thing.name,
+                len(a_thing.property_fetching_coroutines)
+            )
+            for a_coroutine in a_thing.property_fetching_coroutines:
+                # bind the coroutine to its associated thing
+                a_thing_coroutine = a_coroutine(a_thing)
+                # create and schedule the Task for the coroutine
+                a_thing_task = io_loop.create_task(a_thing_coroutine)
+                self._set_of_all_thing_tasks.add(a_thing_task)
+                logging.debug(
+                    '        created task: %s.%s',
+                    a_thing.name,
+                    a_coroutine.property_name
+                )
+
+    def _cancel_and_stop_all_thing_tasks(self):
+        # cancel all the thing_tasks en masse.
+        pending_tasks_in_a_group = gather(
+            *self._set_of_all_thing_tasks,
+            return_exceptions=True
+        )
+        pending_tasks_in_a_group.cancel()
+        # let the event loop run until the all the thing_tasks complete their cancelation
+        logging.debug('shutting down all the things tasks')
+        get_event_loop().run_until_complete(pending_tasks_in_a_group)
 
     def run(self):
         try:
-            io_loop = IOLoop.current().asyncio_loop
-            for a_thing in self.things:
-                logging.debug(
-                    'thing: %s with %s tasks',
-                    a_thing.name,
-                    len(a_thing.property_fetching_tasks)
-                )
-                for a_task in a_thing.property_fetching_tasks:
-                    io_loop.create_task(a_task(a_thing))
-                    logging.debug('created task: %s.%s', a_thing.name, a_task.property_name)
-            logging.debug('server.start')
+            logging.debug('starting server {}'.format(self.name))
+            self._create_and_start_all_thing_tasks()
+            logging.debug('start ')
             self.start()
         except KeyboardInterrupt:
             logging.debug('stop signal received')
-            # when stopping the server, we need to halt any tasks pending from any
-            # asynchronous methods. Gather them together and cancel them en masse.
-            pending_tasks_in_a_group = gather(*Task.all_tasks(), return_exceptions=True)
-            pending_tasks_in_a_group.cancel()
-            # let the io_loop run until the all the tasks complete their cancelation
-            io_loop.run_until_complete(pending_tasks_in_a_group)
+            # when stopping the server, we need to halt any thing_tasks
+            self._cancel_and_stop_all_thing_tasks()
             # finally stop the server
             self.stop()
 
