@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 import logging
+import random
+import asyncio
+
 
 from pywot import (
     WoTThing,
@@ -11,8 +14,8 @@ from pywot import (
 from configman import (
     configuration,
     Namespace,
-    class_converter,
 )
+
 
 class LampHardware:
     def __init__(self):
@@ -54,8 +57,8 @@ class ExampleDimmableLight(WoTThing):
         of the lamp.  For example, to detect if a meddlesome child were to be randomly
         turning the light on/off and adjusting the brightness independently of this
         program."""
-        on = self._lamp_hardware.get_lamp_state()
-        level = self._lamp_hardware.get_lamp_level()
+        self.on = self._lamp_hardware.get_lamp_state()
+        self.level = self._lamp_hardware.get_lamp_level()
 
     def _set_hardware_illumination_state(self, boolean_value):
         # do whatever it takes to set the state of the lamp by
@@ -82,13 +85,43 @@ class ExampleDimmableLight(WoTThing):
     )
 
 
+class MeddlesomeChild:
+    """a chaos monkey that will randomly change the state of the lamp hardware"""
+    def __init__(self, lamp_hardware):
+        self._lamp_hardware = lamp_hardware
+        self.chaos_task = asyncio.get_event_loop().create_task(
+            self.change_lamp_state_task()
+        )
+
+    async def change_lamp_state_task(self):
+        logging.debug('change_lamp_state_task starting')
+        while True:
+            try:
+                wait_time_in_seconds = random.randint(5, 30)
+                logging.debug('meddlesome_child will act in %s seconds', wait_time_in_seconds)
+                await asyncio.sleep(wait_time_in_seconds)
+                if random.random() < 0.5:
+                    logging.info('meddlesome child toggles the light')
+                    self._lamp_hardware.set_lamp_state(
+                        not self._lamp_hardware.get_lamp_state()
+                    )
+                else:
+                    new_level = random.randint(0, 100)
+                    if not self._lamp_hardware.get_lamp_state():
+                        logging.info('meddlesome child turns the light on')
+                        self._lamp_hardware.set_lamp_state(True)
+                    logging.info('meddlesome child changes the dimmer to: %s', new_level)
+                    self._lamp_hardware.set_lamp_level(new_level)
+            except asyncio.CancelledError:
+                break
+
+
 if __name__ == '__main__':
     required_config = Namespace()
     required_config.server = Namespace()
     required_config.server.update(WoTServer.get_required_config())
     required_config.update(ExampleDimmableLight.get_required_config())
-    print(list(required_config.keys()))
-    required_config.seconds_between_polling.default = 10
+    required_config.seconds_between_polling.default = 1
     required_config.update(logging_config)
     config = configuration(required_config)
     logging.basicConfig(
@@ -100,13 +133,13 @@ if __name__ == '__main__':
     lamp_hardware = LampHardware()
     my_controllable_lamp = ExampleDimmableLight(config, lamp_hardware)
 
+    meddlesome_child = MeddlesomeChild(lamp_hardware)
+
     server = WoTServer(
         config,
         [my_controllable_lamp],
         port=config.server.service_port
     )
+    server.add_task(meddlesome_child.chaos_task)
     server.run()
     logging.debug('done.')
-
-
-

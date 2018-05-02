@@ -167,6 +167,9 @@ class WoTServer(WebThingServer, RequiredConfig):
         super(WoTServer, self).__init__(things, name, port, ssl_options)
         self._set_of_all_thing_tasks = set()
 
+    def add_task(self, a_task):
+        self._set_of_all_thing_tasks.add(a_task)
+
     def _create_and_start_all_thing_tasks(self):
         # create the async polling tasks for each Thing's properties
         io_loop = get_event_loop()
