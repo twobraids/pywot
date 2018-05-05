@@ -5,10 +5,10 @@ from webthing import (
     WebThingServer,
 )
 from asyncio import (
-    Task,
     sleep,
     gather,
-    get_event_loop
+    get_event_loop,
+    CancelledError
 )
 from configman import (
     Namespace,
@@ -39,7 +39,7 @@ def create_wot_property(
     description,
     value_source_fn=None,
     value_forwarder=None,
-    metadata=None
+    **kwargs
 ):
     """Is effectively an unbound method of the WoTThing class.  It is used to add a new Thing
     Property to an intializing instance of a WoTThing."""
@@ -52,8 +52,8 @@ def create_wot_property(
         "type": pytype_as_wottype(initial_value),
         "description": description,
     }
-    if metadata:
-        property_metadata.update(metadata)
+    if kwargs:
+        property_metadata.update(kwargs)
     thing_instance.add_property(
         Property(
             thing_instance,
@@ -101,7 +101,7 @@ class WoTThing(Thing, RequiredConfig):
         description,
         value_source_fn=None,
         value_forwarder=None,
-        metadata=None
+        **kwargs
     ):
         # WoT Properties must be instantiated when the Thing is instantiated.  Since this code runs
         # at class load time, we must just save the parameters for a future instantiation.  We do
@@ -114,7 +114,7 @@ class WoTThing(Thing, RequiredConfig):
             description=description,
             value_source_fn=value_source_fn,
             value_forwarder=value_forwarder,
-            metadata=metadata
+            **kwargs
         )
         if value_source_fn is not None:
             # since this Wot Property has its own function for a source of values, it will need an
@@ -127,10 +127,11 @@ class WoTThing(Thing, RequiredConfig):
                 while True:
                     try:
                         await value_source_fn(thing_instance)
-                    except asyncio.CancelledError as e:
+                    except CancelledError:
+                        logging.debug('cancel detected')
                         break
                     except Exception as e:
-                        logging.critical('loading weather data fails: %s', e)
+                        logging.error('loading data fails: %s', e)
                         # we'll be optimistic and prefer to retry if something goes wrong.
                         # while graceful falure is to be commended, there is also great value
                         # in spontaneous recovery.
@@ -228,6 +229,7 @@ logging_config.add_option(
     doc='format string for logging',
     default='%(asctime)s %(filename)s:%(lineno)s %(levelname)s %(message)s',
 )
+
 
 def log_config(config, prefix=''):
     for key, value in config.items():

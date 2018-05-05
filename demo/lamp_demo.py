@@ -82,10 +82,8 @@ class ExampleDimmableLight(WoTThing):
         initial_value=0,
         description="lamp brightness level",
         value_forwarder=_set_hardware_level,
-        metadata={
-            'minimum': 0,
-            'maximum': 100
-        }
+        minimum=0,
+        maximum=100
     )
 
 

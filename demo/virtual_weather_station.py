@@ -92,10 +92,15 @@ class WeatherStation(WoTThing):
         }
 
     async def get_weather_data(self):
+        logging.debug('starting get_weather_data')
         async with aiohttp.ClientSession() as session:
+            logging.debug('session established')
             async with async_timeout.timeout(config.seconds_for_timeout):
+                logging.debug('timeout established with: %s', config.seconds_for_timeout)
                 async with session.get(config.target_url) as response:
+                    logging.debug('get in progress')
                     self.weather_data = json.loads(await response.text())
+        logging.debug('session complete')
         self.temperature = self.weather_data['current_observation']['temp_f']
         self.barometric_pressure = self.weather_data['current_observation']['pressure_in']
         self.wind_speed = self.weather_data['current_observation']['wind_mph']
@@ -111,25 +116,19 @@ class WeatherStation(WoTThing):
         initial_value=0.0,
         description='the temperature in ℉',
         value_source_fn=get_weather_data,
-        metadata={
-            'units': '℉'
-        }
+        units='℉'
     )
     barometric_pressure = WoTThing.wot_property(
         name='barometric_pressure',
         initial_value=30.0,
         description='the air pressure in inches',
-        metadata={
-            'units': 'in'
-        }
+        units='in'
     )
     wind_speed = WoTThing.wot_property(
         name='wind_speed',
         initial_value=30.0,
         description='the wind speed in mph',
-        metadata={
-            'units': 'mph'
-        }
+        units='mph'
     )
 
 
