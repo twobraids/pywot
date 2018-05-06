@@ -45,25 +45,19 @@ class WeatherStation(WoTThing):
         initial_value=0.0,
         description='the temperature in ℉',
         value_source_fn=get_weather_data,
-        metadata={
-            'units': '℉'
-        }
+        units='℉'
     )
     barometric_pressure = WoTThing.wot_property(
         name='barometric_pressure',
         initial_value=30.0,
         description='the air pressure in inches',
-        metadata={
-            'units': 'in'
-        }
+        units='in'
     )
     wind_speed = WoTThing.wot_property(
         name='wind_speed',
         initial_value=30.0,
         description='the wind speed in mph',
-        metadata={
-            'units': 'mph'
-        }
+        units='mph'
     )
 
 

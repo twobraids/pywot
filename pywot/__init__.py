@@ -43,7 +43,6 @@ def create_wot_property(
 ):
     """Is effectively an unbound method of the WoTThing class.  It is used to add a new Thing
     Property to an intializing instance of a WoTThing."""
-    logging.debug('initial_value %s', initial_value)
     if value_forwarder is None:
         value = Value(initial_value)
     else:
@@ -207,7 +206,6 @@ class WoTServer(WebThingServer, RequiredConfig):
         try:
             logging.debug('starting server {}'.format(self.name))
             self._create_and_start_all_thing_tasks()
-            logging.debug('start ')
             self.start()
         except KeyboardInterrupt:
             logging.debug('stop signal received')
