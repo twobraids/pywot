@@ -53,9 +53,7 @@ class WeatherStation(pywot.WoTThing):
         initial_value=0.0,
         description='the temperature in ℉',
         value_source_fn=get_weather_data,
-        metadata={
-            'units': '℉'
-        }
+        units='℉'
     )
 ```
 The `WoTThing` class requires configuration of only one value, the loop delay during polling.  That is supplied to the `__init__` method in the form `config.seconds_between_polling`.  This is library uses the `configman` package for propagating 
@@ -73,7 +71,7 @@ pywot.WoTThing.**wot_property**(kls,
         description,
         value_source_fn=None,
         value_forwarder=None,
-        metadata=None
+        **kwargs
 )
 
 This classmethod works much like the Python `property` method.  It defines a `webthing.Property` for the enclosing derived class 
