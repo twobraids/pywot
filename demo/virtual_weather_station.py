@@ -96,9 +96,10 @@ class WeatherStation(WoTThing):
             async with async_timeout.timeout(config.seconds_for_timeout):
                 async with session.get(config.target_url) as response:
                     self.weather_data = json.loads(await response.text())
-        self.temperature = self.weather_data['current_observation']['temp_f']
-        self.barometric_pressure = self.weather_data['current_observation']['pressure_in']
-        self.wind_speed = self.weather_data['current_observation']['wind_mph']
+        current_observation = self.weather_data['current_observation']
+        self.temperature = current_observation['temp_f']
+        self.barometric_pressure = current_observation['pressure_in']
+        self.wind_speed = current_observation['wind_mph']
         logging.debug(
             'new values fetched: %s, %s, %s',
             self.temperature,
