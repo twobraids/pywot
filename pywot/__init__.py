@@ -130,7 +130,7 @@ class WoTThing(Thing, RequiredConfig):
                         logging.debug('cancel detected')
                         break
                     except Exception as e:
-                        logging.error('loading data fails: %s', e)
+                        logging.error('loading data fails: %s: %s', type(e), e)
                         # we'll be optimistic and prefer to retry if something goes wrong.
                         # while graceful falure is to be commended, there is also great value
                         # in spontaneous recovery.
