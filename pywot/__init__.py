@@ -28,6 +28,7 @@ def pytype_as_wottype(example_value):
         str: 'string',
         float: 'number',
         bool: 'boolean',
+        type(None): 'string',
     }[type(example_value)]
 
 
