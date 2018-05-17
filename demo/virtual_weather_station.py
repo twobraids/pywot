@@ -37,9 +37,9 @@ def create_url(config, local_namespace, args):
     """generate a URL to fetch local weather data from Weather Underground using
     configuration data"""
     return "http://api.wunderground.com/api/{}/conditions/q/{}/{}.json".format(
-        config.weather_underground_api_key,
-        config.state_code,
-        config.city_name
+        local_namespace.weather_underground_api_key,
+        local_namespace.state_code,
+        local_namespace.city_name
     )
 
 
