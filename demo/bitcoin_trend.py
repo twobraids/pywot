@@ -20,6 +20,7 @@ import aiohttp
 import async_timeout
 import json
 import logging
+from random import randint
 
 from pywot import (
     WoTThing,
@@ -69,22 +70,17 @@ class BitcoinTrend(WoTThing):
         self.previous_value = 0
 
     async def get_bitcoin_value(self):
-        async with aiohttp.ClientSession() as session:
-            async with async_timeout.timeout(self.config.seconds_for_timeout):
-                async with session.get(self.config.target_url) as response:
-                    self.bitcoin_data = json.loads(await response.text())
-        current_observation = self.bitcoin_data['bpi']['USD']['rate_float']
-        self.trend = self.sign(current_observation - self.previous_value)
-        self.previous_value = current_observation
+        self.trend = randint(0, 1)
+        if self.trend == 0:
+            self.trend = -1
         logging.debug(
-            'new value fetched: %s, trend: %s',
-            current_observation,
+            'trend: %s',
             self.trend,
         )
 
     trend = WoTThing.wot_property(
         name='trend',
-        initial_value=0,
+        initial_value=1,
         description='the trend positive or negative',
         value_source_fn=get_bitcoin_value,
     )
