@@ -22,7 +22,7 @@ import json
 import logging
 
 from pywot import (
-    WoTThing,
+    create_new_WoTThing_class,
     logging_config,
     log_config
 )
@@ -43,6 +43,7 @@ def create_url(config, local_namespace, args):
     )
 
 
+WoTThing = create_new_WoTThing_class()
 class WeatherStation(WoTThing):
     required_config = Namespace()
     required_config.add_option(
@@ -93,8 +94,8 @@ class WeatherStation(WoTThing):
 
     async def get_weather_data(self):
         async with aiohttp.ClientSession() as session:
-            async with async_timeout.timeout(config.seconds_for_timeout):
-                async with session.get(config.target_url) as response:
+            async with async_timeout.timeout(self.config.seconds_for_timeout):
+                async with session.get(self.config.target_url) as response:
                     self.weather_data = json.loads(await response.text())
         current_observation = self.weather_data['current_observation']
         self.temperature = current_observation['temp_f']

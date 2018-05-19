@@ -4,7 +4,7 @@ import logging
 from aiohttp import ClientSession
 from async_timeout import timeout
 from pywot import (
-    WoTThing,
+    create_new_WoTThing_class,
     WoTServer,
     logging_config,
     log_config
@@ -19,6 +19,7 @@ from configman import (
 )
 
 
+WoTThing = create_new_WoTThing_class()
 class RouterMonitor(WoTThing):
     required_config = Namespace()
     required_config.add_option(

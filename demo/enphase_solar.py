@@ -17,7 +17,7 @@ import logging
 from bs4 import BeautifulSoup
 
 from pywot import (
-    WoTThing,
+    create_new_WoTThing_class,
     logging_config,
     log_config
 )
@@ -35,6 +35,7 @@ def create_url(config, local_namespace, args):
     )
 
 
+WoTThing = create_new_WoTThing_class()
 class EnphaseEnergyMonitor(WoTThing):
     required_config = Namespace()
     required_config.add_option(

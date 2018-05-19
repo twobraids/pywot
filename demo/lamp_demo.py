@@ -6,7 +6,7 @@ import asyncio
 
 
 from pywot import (
-    WoTThing,
+    create_new_WoTThing_class,
     WoTServer,
     logging_config,
     log_config
@@ -41,6 +41,7 @@ class LampHardware:
         self._level = value
 
 
+WoTThing = create_new_WoTThing_class()
 class ExampleDimmableLight(WoTThing):
 
     def __init__(self, config, lamp_hardware):

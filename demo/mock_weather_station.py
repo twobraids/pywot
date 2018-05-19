@@ -2,7 +2,7 @@
 
 import logging
 from pywot import (
-    WoTThing,
+    create_new_WoTThing_class,
     logging_config,
     log_config
 )
@@ -17,6 +17,7 @@ from random import (
 )
 
 
+WoTThing = create_new_WoTThing_class()
 class WeatherStation(WoTThing):
     def __init__(self, config):
         super(WeatherStation, self).__init__(

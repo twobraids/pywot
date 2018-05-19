@@ -17,7 +17,7 @@ from functools import partial
 from twilio.rest import Client
 
 from pywot import (
-    WoTThing,
+    create_new_WoTThing_class,
     logging_config,
     log_config
 )
@@ -28,6 +28,7 @@ from configman import (
 )
 
 
+WoTThing = create_new_WoTThing_class()
 class TwilioSMS(WoTThing):
     required_config = Namespace()
     required_config.add_option(

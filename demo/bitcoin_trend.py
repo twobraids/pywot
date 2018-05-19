@@ -22,7 +22,7 @@ import json
 import logging
 
 from pywot import (
-    WoTThing,
+    create_new_WoTThing_class,
     logging_config,
     log_config
 )
@@ -32,7 +32,7 @@ from configman import (
     class_converter,
 )
 
-
+WoTThing = create_new_WoTThing_class()
 class BitcoinTrend(WoTThing):
     required_config = Namespace()
     required_config.add_option(
