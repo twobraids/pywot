@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
 
-"""This Web Thing implements a virtual weather station using data from Weather Underground.
-It exposes temperature, barometric pressure and wind speed in three properties that can be
-used as the basis for rules in the Things Gateway.
-
-To use this Web Thing, a developer API key must be acquired from Weather Underground at this URL:
-https://www.wunderground.com/weather/api/d/pricing.html
-
-I use the Developer version of the Cumulus Plan which allows for 500 API hits for a cost of 0$.
-That translates to fetching weather data every three minutes.
+"""This Web Thing implements a monitor for the price of bitcoin.  The objective is to
+turn change the state of a light to indicate an inflating or deflating price of bitcoin
+by polling the conversion rate from coindesk.
 
 Once the app is running, --help will give a complete listing of the options.  Alternatively,
 running with the option --admin.dump_conf=my_config.ini  will create an ini file that then
