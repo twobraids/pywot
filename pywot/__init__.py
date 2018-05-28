@@ -16,6 +16,7 @@ from configman import (
 )
 from configman.converters import to_str
 from functools import partial
+from itertools import filterfalse
 from collections import Mapping
 import logging
 
@@ -32,69 +33,10 @@ def pytype_as_wottype(example_value):
     }[type(example_value)]
 
 
-def create_wot_property(
-    thing_instance,
-    *,
-    name,
-    initial_value,
-    description,
-    value_source_fn=None,
-    value_forwarder=None,
-    **kwargs
-):
-    """Is effectively an unbound method of the WoTThing class.  It is used to add a new Thing
-    Property to an intializing instance of a WoTThing."""
-    if value_forwarder is None:
-        value = Value(initial_value)
-    else:
-        value = Value(initial_value, value_forwarder=partial(value_forwarder, thing_instance))
-    property_metadata = {
-        "type": pytype_as_wottype(initial_value),
-        "description": description,
-    }
-    if kwargs:
-        property_metadata.update(kwargs)
-    thing_instance.add_property(
-        Property(
-            thing_instance,
-            name,
-            value,
-            property_metadata
-        )
-    )
-
-
-class WoTThing(Thing, RequiredConfig):
-    """This class mixes in the Configman configuration API into the Things Gateway Thing class
-    It also provides the mechanism that allows Thing properties to be specified during a derived
-    classes loading time, but not instantiated until a derived class instance initialization. This
-    allows Thing properties to work like traditional Python `properties`.  That, in turn,
-    simplifies the task of the author of the derived class and makes for more readable code."""
-    required_config = Namespace()
-    required_config.add_option(
-        'seconds_between_polling',
-        doc='the number of seconds between each time polling',
-        default=300
-    )
-
-    def __init__(self, config, name, type_, description):
-        self.config = config
-        super(WoTThing, self).__init__(name, type_, description=description)
-        # instantiate the WoT Properties by iterating through and executing the partial functions
-        # associated with each
-        for property_name, create_wot_property_fn in self.wot_property_functions.items():
-            logging.debug('creating property %s', property_name)
-            create_wot_property_fn(self)
-
-    # a mapping of property names to partials of the `create_wot_property` method above
-    wot_property_functions = {}
-    # a list of asynchronous methods that can fetch values for each of the properties from
-    # whatever underlying (virtual) mechanism embodies the semantic meaning of the properties
-    property_fetching_coroutines = []
-
-    @classmethod
-    def wot_property(
-        kls,
+class WoTProperty:
+    """This class is a descriptor containing all of the required resources of a webthing.Property"""
+    def __init__(
+        self,
         *,
         name,
         initial_value,
@@ -107,8 +49,8 @@ class WoTThing(Thing, RequiredConfig):
         # at class load time, we must just save the parameters for a future instantiation.  We do
         # this with a partial of the `create_wot_property` and save it in the mapping keyed by
         # Wot Property names.
-        kls.wot_property_functions[name] = partial(
-            create_wot_property,
+        self.wot_property_creation_function = partial(
+            self.create_wot_property,
             name=name,
             initial_value=initial_value,
             description=description,
@@ -116,10 +58,11 @@ class WoTThing(Thing, RequiredConfig):
             value_forwarder=value_forwarder,
             **kwargs
         )
+        self.name = name
         if value_source_fn is not None:
             # since this Wot Property has its own function for a source of values, it will need an
             # async loop to poll for the values.  We define it here as a closure over that
-            # the `value_source_fn`.  Since it will be executed only after instantiation
+            # the `value_source_fn`.  It will be executed only after instantiation by the server
             # and the first parameter is an instance of Thing, we're effectively making a new
             # instance method.  We save the closure function in the `property_fetching_coroutines`
             # list.
@@ -140,19 +83,103 @@ class WoTThing(Thing, RequiredConfig):
             # since there may be more that one `a_property_fetching_task`, it gets tagged
             # so that we can get more helpful debugging and logging information
             a_property_fetching_coroutine.property_name = name
-            kls.property_fetching_coroutines.append(a_property_fetching_coroutine)
+            self.property_fetching_coroutine = a_property_fetching_coroutine
 
-        # Finally, we make a getter and setter for the WoT Property so that we can access
-        # and modify the value of the property using normal Python property syntax.
-        # These two functions are closures over the name of the WoT Property.
-        def get_value_fn(thing_instance):
-            return thing_instance.properties[name].value.get()
+    def __get__(self, thing_instance, objtype=None):
+        if thing_instance is None:
+            return self
+        return thing_instance.properties[self.name].value.get()
 
-        def set_value_fn(thing_instance, new_value):
-            thing_instance.properties[name].value.notify_of_external_update(new_value)
+    def __set__(self, thing_instance, new_value):
+        thing_instance.properties[self.name].value.notify_of_external_update(new_value)
 
-        # wrap the getter and setter into a standard Python property and return it
-        return property(get_value_fn, set_value_fn)
+    def create_wot_property(
+        self,
+        thing_instance,
+        *,
+        name,
+        initial_value,
+        description,
+        value_source_fn=None,
+        value_forwarder=None,
+        **kwargs
+    ):
+        """this method is used to add a new Thing Property to an intializing instance of a WoTThing.
+        It is invoked as a partial functon"""
+        if value_forwarder is None:
+            value = Value(initial_value)
+        else:
+            value = Value(initial_value, value_forwarder=partial(value_forwarder, thing_instance))
+        property_metadata = {
+            "type": pytype_as_wottype(initial_value),
+            "description": description,
+        }
+        if kwargs:
+            property_metadata.update(kwargs)
+        thing_instance.add_property(
+            Property(
+                thing_instance,
+                name,
+                value,
+                property_metadata
+            )
+        )
+
+
+class WoTThing(Thing, RequiredConfig):
+    """This class mixes in the Configman configuration API into the Things Gateway Thing class
+    It also provides the mechanism that allows Thing properties to be specified during a derived
+    classes loading time, but not instantiated until a derived class instance initialization. This
+    allows Thing properties to work like traditional Python `properties`.  That, in turn,
+    simplifies the task of the author of the derived class and makes for more readable code."""
+    required_config = Namespace()
+    required_config.add_option(
+        'seconds_between_polling',
+        doc='the number of seconds between each time polling',
+        default=300
+    )
+
+    def __init__(self, config, name, type_, description):
+        self.config = config
+        super(WoTThing, self).__init__(name, type_, description=description)
+        self.property_fetching_coroutines = []
+
+        # instantiate the WoT Properties by iterating through and executing the partial functions
+        # associated with each
+        for attribute_name in dir(self.__class__):
+            if attribute_name.startswith('_'):
+                continue
+            if not isinstance(getattr(self.__class__, attribute_name), WoTProperty):
+                continue
+            wot_property_instance = getattr(self.__class__, attribute_name)
+            logging.debug('creating property %s', wot_property_instance.name)
+            wot_property_instance.wot_property_creation_function(self)
+            try:
+                self.property_fetching_coroutines.append(
+                    wot_property_instance.property_fetching_coroutine
+                )
+            except AttributeError:  # no property is required to have a property_fetching_coroutine
+                pass
+
+    @classmethod
+    def wot_property(
+        kls,
+        *,
+        name,
+        initial_value,
+        description,
+        value_source_fn=None,
+        value_forwarder=None,
+        **kwargs
+    ):
+        return WoTProperty(
+            name=name,
+            initial_value=initial_value,
+            description=description,
+            value_source_fn=value_source_fn,
+            value_forwarder=value_forwarder,
+            **kwargs
+        )
 
 
 class WoTServer(WebThingServer, RequiredConfig):

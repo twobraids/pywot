@@ -54,8 +54,8 @@ class RouterMonitor(WoTThing):
         logging.debug('executing is_the_router_ok')
         try:
             async with ClientSession() as session:
-                async with timeout(config.seconds_for_timeout):
-                    async with session.get(config.target_url) as response:
+                async with timeout(self.config.seconds_for_timeout):
+                    async with session.get(self.config.target_url) as response:
                         # we're just awaitng a response before a timeout
                         # we don't really care what the response is
                         await response.text()

@@ -37,9 +37,9 @@ def create_url(config, local_namespace, args):
     """generate a URL to fetch local weather data from Weather Underground using
     configuration data"""
     return "http://api.wunderground.com/api/{}/conditions/q/{}/{}.json".format(
-        config.weather_underground_api_key,
-        config.state_code,
-        config.city_name
+        local_namespace.weather_underground_api_key,
+        local_namespace.state_code,
+        local_namespace.city_name
     )
 
 
@@ -93,8 +93,8 @@ class WeatherStation(WoTThing):
 
     async def get_weather_data(self):
         async with aiohttp.ClientSession() as session:
-            async with async_timeout.timeout(config.seconds_for_timeout):
-                async with session.get(config.target_url) as response:
+            async with async_timeout.timeout(self.config.seconds_for_timeout):
+                async with session.get(self.config.target_url) as response:
                     self.weather_data = json.loads(await response.text())
         current_observation = self.weather_data['current_observation']
         self.temperature = current_observation['temp_f']

@@ -81,8 +81,8 @@ class EnphaseEnergyMonitor(WoTThing):
 
     async def get_enphase_data(self):
         async with aiohttp.ClientSession() as session:
-            async with async_timeout.timeout(config.seconds_for_timeout):
-                async with session.get(config.target_url) as response:
+            async with async_timeout.timeout(self.config.seconds_for_timeout):
+                async with session.get(self.config.target_url) as response:
                     enphase_home_page_raw = await response.text()
         enphase_page = BeautifulSoup(enphase_home_page_raw, 'html.parser')
         # this is stupidly fragile - we're assuming this page format never
