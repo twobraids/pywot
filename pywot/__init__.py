@@ -47,8 +47,8 @@ class WoTProperty:
     ):
         # WoT Properties must be instantiated when the Thing is instantiated.  Since this code runs
         # at class load time, we must just save the parameters for a future instantiation.  We do
-        # this with a partial of the `create_wot_property` and save it in the mapping keyed by
-        # Wot Property names.
+        # this with a partial of the `create_wot_property` and save it as an attribute to be used
+        # at a later time
         self.wot_property_creation_function = partial(
             self.create_wot_property,
             name=name,
@@ -64,8 +64,8 @@ class WoTProperty:
             # async loop to poll for the values.  We define it here as a closure over that
             # the `value_source_fn`.  It will be executed only after instantiation by the server
             # and the first parameter is an instance of Thing, we're effectively making a new
-            # instance method.  We save the closure function in the `property_fetching_coroutines`
-            # list.
+            # instance method for the WoTThing class.  Ideally, this should be a member of the
+            # of the WoTThing class and may well move there in the future.
             async def a_property_fetching_coroutine(thing_instance):
                 while True:
                     try:
@@ -86,11 +86,15 @@ class WoTProperty:
             self.property_fetching_coroutine = a_property_fetching_coroutine
 
     def __get__(self, thing_instance, objtype=None):
+        # to serve as a Python descriptor, there must be a __get__ method to return the
+        # target value from the underlying WoT Thing instance.
         if thing_instance is None:
             return self
         return thing_instance.properties[self.name].value.get()
 
     def __set__(self, thing_instance, new_value):
+        # to serve as a Python descriptor, we provide a __set__ method to set a new value
+        # for the Property in the underlying WoT Thing instance.
         thing_instance.properties[self.name].value.notify_of_external_update(new_value)
 
     def create_wot_property(
