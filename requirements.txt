@@ -1,0 +1,2 @@
+configman
+webthing>=0.6

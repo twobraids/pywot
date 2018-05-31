@@ -35,7 +35,7 @@ setup(
     keywords='web of things, internet of things',
 
     packages=find_packages(exclude=['pywot']),
-    install_requires=['configman'],
+    install_requires=['configman', 'webthing>=0.6'],
 
     project_urls={
         'Source': 'https://github.com/twobraids/pywot/',
