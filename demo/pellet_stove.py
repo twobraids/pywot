@@ -4,7 +4,7 @@
 # to mediate between a thermostat and Quadrafire Santa Fe pellet stove in the
 # volatile temperature environment of a yurt.
 
-# Starting and stopping a pellet stove is requires 350W of power for about five
+# Starting and stopping a pellet stove requires 350W of power for about five
 # minutes during startup.  Thereafter, the electricity use is minimal as it just
 # runs fans and the auger.
 
@@ -17,9 +17,9 @@
 # stove thirty or forty minutes to recover the temperature.
 
 # This program resolves the temperature volatility by not allowing the
-# themostat to abruptly turn off the stove.  When the thermostat
+# thermostat to abruptly turn off the stove.  When the thermostat
 # turns off its "call signal", instead of shutting down, the stove just drops
-# a level of intensity: going from high to medium.  If, after a configurabale
+# a level of intensity: going from high to medium.  If, after a configurable
 # number of minutes passes, the thermostat hasn't called for more heat, the
 # stove backs down another level to low.  The stove only shuts down after the
 # low timer expires.  At anytime during the slow backing off shutdown the
@@ -28,7 +28,7 @@
 # This smooths out the wild peaks and valleys of the temperature fluctuation.
 
 # Future enhancements: adding a outdoor temperature monitor to adjust the length
-# of the medium and low level timeouts.  This would fix the problem of over heating
+# of the medium and low level timeouts.  This would fix the problem of overheating
 # the yurt during mild weather.
 
 import logging
@@ -164,7 +164,6 @@ class PelletStove(WoTThing):
             with contextlib.suppress(asyncio.CancelledError):
                 asyncio.get_event_loop().run_until_complete(self.lingering_shutdown_task)
         self._controller.shutdown()
-
 
 
 if __name__ == '__main__':

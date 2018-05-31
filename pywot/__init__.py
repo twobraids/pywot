@@ -1,6 +1,8 @@
 from webthing import (
     Thing,
+    MultipleThings,
     Property,
+    SingleThing,
     Value,
     WebThingServer,
 )
@@ -196,7 +198,13 @@ class WoTServer(WebThingServer, RequiredConfig):
 
     def __init__(self, config, things, name=None, port=80, ssl_options=None):
         self.config = config
-        super(WoTServer, self).__init__(things, name, port, ssl_options)
+
+        if len(things) == 1:
+            things = SingleThing(things[0])
+        else:
+            things = MultipleThings(things, name)
+
+        super(WoTServer, self).__init__(things, port, ssl_options)
         self._set_of_all_thing_tasks = set()
 
     def add_task(self, a_task):
@@ -205,7 +213,7 @@ class WoTServer(WebThingServer, RequiredConfig):
     def _create_and_start_all_thing_tasks(self):
         # create the async polling tasks for each Thing's properties
         io_loop = get_event_loop()
-        for a_thing in self.things:
+        for a_thing in self.things.get_things():
             logging.debug(
                 '    thing: %s with %s tasks',
                 a_thing.name,
