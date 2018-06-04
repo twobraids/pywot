@@ -59,7 +59,7 @@ class PelletStove(WoTThing):
     required_config.add_option(
         name='medium_linger_time_in_minutes',
         doc='the time in minutes of lingering on medium during shutdown',
-        default=5,
+        default=5.0,
     )
     required_config.add_aggregation(
         'medium_linger_time_in_seconds',
@@ -68,7 +68,7 @@ class PelletStove(WoTThing):
     required_config.add_option(
         name='low_linger_time_in_minutes',
         doc='the time in minutes of lingering on low during shutdown',
-        default=5,
+        default=5.0,
     )
     required_config.add_aggregation(
         'low_linger_time_in_seconds',
@@ -123,7 +123,7 @@ class PelletStove(WoTThing):
 
     async def set_stove_mode_to_heating(self):
         if self.lingering_shutdown_task:
-            logging.debug('overriding lingering shutdown to turn stove higher')
+            logging.debug('canceling lingering shutdown to turn stove back to high')
             self.lingering_shutdown_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self.lingering_shutdown_task

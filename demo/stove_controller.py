@@ -15,6 +15,7 @@ class StoveControllerImplementation:
         GPIO.setup(ORANGE, GPIO.OUT)
         GPIO.setup(BLUE, GPIO.OUT)
         GPIO.setup(THERMOSTAT, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        self.set_off()
 
     def set_on_high(self):
         GPIO.output(WHITE, ON)
