@@ -136,7 +136,7 @@ class PelletStove(WoTThing):
         value_forwarder=set_medium_linger
     )
     low_linger_minutes = WoTThing.wot_property(
-        name='medium_linger_minutes',
+        name='low_linger_minutes',
         description='how long should the low level last during lingering shutdown',
         initial_value=5.0,
         value_forwarder=set_low_linger
