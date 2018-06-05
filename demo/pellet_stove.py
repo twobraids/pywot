@@ -86,9 +86,15 @@ class PelletStove(WoTThing):
         self._controller = config.controller_implementation_class()
         self.lingering_shutdown_task = None
 
+        self.logging_count = 0
+
     async def get_thermostat_state(self):
         previous_thermostat_state = self.thermostat_state
         self.thermostat_state = self._controller.get_thermostat_state()
+        self.logging_count += 1
+        if self.logging_count % 300 == 0:
+            logging.debug('still monitoring thermostat')
+            self.logging_count = 0
         if previous_thermostat_state != self.thermostat_state:
             if self.thermostat_state:
                 logging.info('start heating')
@@ -101,9 +107,11 @@ class PelletStove(WoTThing):
 
     def set_medium_linger(self, value_in_minutes):
         self.medium_linger_time_in_seconds = value_in_minutes * 60
+        logging.debug('medium_linger_time set to %s seconds',self.medium_linger_time_in_seconds)
 
     def set_low_linger(self, value_in_minutes):
         self.low_linger_time_in_seconds = value_in_minutes * 60
+        logging.debug('low_linger_time set to %s seconds',self.low_linger_time_in_seconds)
 
     thermostat_state = WoTThing.wot_property(
         name='thermostat_state',
