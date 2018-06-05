@@ -61,18 +61,10 @@ class PelletStove(WoTThing):
         doc='the time in minutes of lingering on medium during shutdown',
         default=5.0,
     )
-    required_config.add_aggregation(
-        'medium_linger_time_in_seconds',
-        lambda config, local_config, args: local_config.medium_linger_time_in_minutes * 60
-    )
     required_config.add_option(
         name='low_linger_time_in_minutes',
         doc='the time in minutes of lingering on low during shutdown',
         default=5.0,
-    )
-    required_config.add_aggregation(
-        'low_linger_time_in_seconds',
-        lambda config, local_config, args: local_config.low_linger_time_in_minutes * 60
     )
     required_config.add_option(
         'controller_implementation_class',
@@ -88,12 +80,21 @@ class PelletStove(WoTThing):
             "thing",
             "pellet stove automation"
         )
+        self.set_medium_linger(config.medium_linger_time_in_minutes)
+        self.set_low_linger(config.low_linger_time_in_minutes)
+
         self._controller = config.controller_implementation_class()
         self.lingering_shutdown_task = None
+
+        self.logging_count = 0
 
     async def get_thermostat_state(self):
         previous_thermostat_state = self.thermostat_state
         self.thermostat_state = self._controller.get_thermostat_state()
+        self.logging_count += 1
+        if self.logging_count % 300 == 0:
+            logging.debug('still monitoring thermostat')
+            self.logging_count = 0
         if previous_thermostat_state != self.thermostat_state:
             if self.thermostat_state:
                 logging.info('start heating')
@@ -103,6 +104,14 @@ class PelletStove(WoTThing):
                 self.lingering_shutdown_task = asyncio.get_event_loop().create_task(
                     self.set_stove_mode_to_lingering()
                 )
+
+    def set_medium_linger(self, value_in_minutes):
+        self.medium_linger_time_in_seconds = value_in_minutes * 60
+        logging.debug('medium_linger_time set to %s seconds',self.medium_linger_time_in_seconds)
+
+    def set_low_linger(self, value_in_minutes):
+        self.low_linger_time_in_seconds = value_in_minutes * 60
+        logging.debug('low_linger_time set to %s seconds',self.low_linger_time_in_seconds)
 
     thermostat_state = WoTThing.wot_property(
         name='thermostat_state',
@@ -119,6 +128,18 @@ class PelletStove(WoTThing):
         name='stove_automation_mode',
         description='the current operating mode of the stove',
         initial_value='off',  # off, heating, lingering_in_medium, lingering_in_low, overridden
+    )
+    medium_linger_minutes = WoTThing.wot_property(
+        name='medium_linger_minutes',
+        description='how long should the medium level last during lingering shutdown',
+        initial_value=5.0,
+        value_forwarder=set_medium_linger
+    )
+    low_linger_minutes = WoTThing.wot_property(
+        name='low_linger_minutes',
+        description='how long should the low level last during lingering shutdown',
+        initial_value=5.0,
+        value_forwarder=set_low_linger
     )
 
     async def set_stove_mode_to_heating(self):
@@ -138,18 +159,18 @@ class PelletStove(WoTThing):
         self.stove_automation_mode = 'lingering_in_medium'
         logging.debug(
             'stove set to medium for %s seconds',
-            self.config.medium_linger_time_in_seconds
+            self.medium_linger_time_in_seconds
         )
-        await asyncio.sleep(self.config.medium_linger_time_in_seconds)
+        await asyncio.sleep(self.medium_linger_time_in_seconds)
 
         self._controller.set_on_low()
         self.stove_state = 'low'
         self.stove_automation_mode = 'lingering_in_low'
         logging.debug(
             'stove set to low for %s seconds',
-            self.config.low_linger_time_in_seconds
+            self.low_linger_time_in_seconds
         )
-        await asyncio.sleep(self.config.low_linger_time_in_seconds)
+        await asyncio.sleep(self.low_linger_time_in_seconds)
 
         self._controller.set_off()
         self.stove_state = 'off'
