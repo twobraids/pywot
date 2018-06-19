@@ -14,7 +14,7 @@ from datetime import (
 async def get_tide_table(last_tide=None):
     async with aiohttp.ClientSession() as session:
         async with async_timeout.timeout(10):
-            async with session.post(
+            async with session.get(
                 "http://api.wunderground.com/api/c5410a6a36d2e304/tide/q/OR/waldport.json",
             ) as response:
                 raw_tide_data = json.loads(await response.text())
@@ -34,7 +34,8 @@ async def get_tide_table(last_tide=None):
             ))
 
     future_tides = []
-    for i, (x, t) in enumerate(raw_future_tides[:-1]):
+    #for i, (x, t) in enumerate(raw_future_tides[:-1]):  #TODO
+    for i, (x, t) in enumerate(raw_future_tides[:2]):
         future_tides.append((
             # 0 - tide type
             x,
