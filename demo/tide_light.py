@@ -138,7 +138,6 @@ async def control_tide_light(config):
     # loop over all the tide events
     async for a_tide in tide_iterator(config):
         step_time = a_tide[1]
-        print('next ', step_time)
         # divide the time between the last tide in the past with the
         # next tide in the future into 120 time segments: one color for each
         for step in range(120):
@@ -155,7 +154,7 @@ async def control_tide_light(config):
                 # synchronizing with the correct color for the current time.
                 step_time += a_tide[3]
                 continue
-            print("now: {}  step:{}  next:{}".format(now, step_time, a_tide[1]))
+            print("now: {}  step:{}  previous:{}".format(now, step_time, a_tide[1]))
             print("set ", a_color_list[step])
             print("wait ", a_tide[3].seconds)
             await change_bulb_color(config, a_color_list[step])
