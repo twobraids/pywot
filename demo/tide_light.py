@@ -3,26 +3,29 @@ import json
 import asyncio
 import aiohttp
 import async_timeout
-from datetime import (
-    datetime,
-)
+from datetime import datetime
 from configman import (
     Namespace,
-    configuration,
-    class_converter
+    configuration
 )
 
 
-async def get_tide_table(config, last_tide=None):
+async def get_tide_table(config, last_tide_in_the_past=None):
+    # get the tide data from Weather Underground
     async with aiohttp.ClientSession() as session:
         async with async_timeout.timeout(config.seconds_for_timeout):
             async with session.get(config.target_url) as response:
                 raw_tide_data = json.loads(await response.text())
 
-    raw_future_tides = []
+    # The raw tide data has junk in it that we don't want
+    # Pare it down to just the High Tide and Low Tide events
+    # ignoring all the other events that Weather Underground
+    # gives in the tide data (sunset, sunrise, moonset, moonrise,
+    # moon phase, ...)
+    raw_tide_list = []
     for item in raw_tide_data["tide"]["tideSummary"]:
         if item["data"]["type"] in ("High Tide", "Low Tide"):
-            raw_future_tides.append((
+            raw_tide_list.append((
                 item["data"]["type"],
                 datetime(
                     int(item["date"]["year"]),
@@ -33,42 +36,50 @@ async def get_tide_table(config, last_tide=None):
                 )
             ))
 
-    future_tides = []
+    # Now create a more useful list of tide events as tuples of
+    # (TideType, TideTime, TideLength, TideIncrementLength)
+    future_tides_list = []
     # for i, (x, t) in enumerate(raw_future_tides[:-1]):  #TODO
-    for i, (x, t) in enumerate(raw_future_tides[:2]):
-        future_tides.append((
-            # 0 - tide type
+    for i, (x, t) in enumerate(raw_tide_list[:2]):
+        future_tides_list.append((
             x,
-            # 1 - tide time
             t,
-            # 2 - length of tide
-            raw_future_tides[i + 1][1] - t,
-            # 3 - time between tides
-            (raw_future_tides[i + 1][1] - t) / 120
+            raw_tide_list[i + 1][1] - t,
+            (raw_tide_list[i + 1][1] - t) / 120
         ))
 
-    if last_tide is None:
-        last_tide = (
-            "Low Tide" if future_tides[0][0] == "High Tide" else "High Tide",
-            future_tides[0][1] - future_tides[0][2],
-            future_tides[0][2],
-            future_tides[0][3],
+    # We need the last tide event, but Weather Underground only gives us
+    # future events.  Guess about timing of the previous tide was if it wasn't
+    # already passed in to this method
+    if last_tide_in_the_past is None:
+        last_tide_in_the_past = (
+            "Low Tide" if future_tides_list[0][0] == "High Tide" else "High Tide",
+            future_tides_list[0][1] - future_tides_list[0][2],
+            future_tides_list[0][2],
+            future_tides_list[0][3],
         )
-    tide_table = [last_tide]
 
-    tide_table.extend(future_tides)
+    # Create a tide table - a list of tide tuples where the first entry is the
+    # most recent tide event in the past
+    tide_table = [last_tide_in_the_past]
+    tide_table.extend(future_tides_list)
+
     return tide_table
 
 
-async def tide_stream(config):
+async def tide_iterator(config):
+    # Create a never ending generator of tide events
     tide_table = await get_tide_table(config)
     while True:
         for a_tide in tide_table:
             yield a_tide
+        # we've exhausted the current tide table. Get the next one,
+        # but preload it with the most recent tide event in the past
         tide_table = await get_tide_table(config, tide_table[-1])
 
 
-low_to_high = [
+# the colors to use in the transition from low tide to high tide
+low_to_high_color_list = [
     '#00ff00', '#04ff00', '#08ff00', '#0cff00', '#10ff00', '#15ff00',
     '#19ff00', '#1dff00', '#21ff00', '#26ff00', '#2aff00', '#2eff00',
     '#32ff00', '#37ff00', '#3bff00', '#3fff00', '#43ff00', '#48ff00',
@@ -91,7 +102,8 @@ low_to_high = [
     '#ff1900', '#ff1500', '#ff1000', '#ff0c00', '#ff0800', '#ff0400',
 ]
 
-high_to_low = [
+# the colors to use in the transition from high tide to low tide
+high_to_low_color_list = [
     '#ff0000', '#ff0008', '#ff0010', '#ff0019', '#ff0022', '#ff002a',
     '#ff0033', '#ff003b', '#ff0043', '#ff004c', '#ff0054', '#ff005d',
     '#ff0066', '#ff006e', '#ff0077', '#ff007f', '#ff0087', '#ff0090',
@@ -115,26 +127,36 @@ high_to_low = [
 ]
 
 
-async def control_tide(config):
-    async for a_tide in tide_stream(config):
+async def control_tide_light(config):
+    # loop over all the tide events
+    async for a_tide in tide_iterator(config):
         step_time = a_tide[1]
         print('next ', step_time)
+        # divide the time between the last tide in the past with the
+        # next tide in the future into 120 time segments: one color for each
         for step in range(120):
-            colors = low_to_high if a_tide[0] == "Low Tide" else high_to_low
+            if a_tide[0] == "Low Tide":
+                a_color_list = low_to_high_color_list
+            else:
+                a_color_list = high_to_low_color_list
             now = datetime.now()
             if now > step_time:
+                # if we're ahead of the correct time, for example, during initial
+                # startup when not perfectly aligned with the most recent tide,
+                # increment the step_time, but skip setting the tide light color
+                # and waiting.  This fast forwards the loop to the current time,
+                # synchronizing with the correct color for the current time.
                 step_time += a_tide[3]
-                print(now, step_time)
                 continue
             print("now: {}  step:{}  next:{}".format(now, step_time, a_tide[1]))
-            print("set ", colors[step])
+            print("set ", a_color_list[step])
             print("wait ", a_tide[3].seconds)
-            await put_tide_color(config, colors[step])
+            await change_bulb_color(config, a_color_list[step])
             await asyncio.sleep(a_tide[3].seconds)
             step_time += a_tide[3]
 
 
-async def put_tide_color(config, a_color):
+async def change_bulb_color(config, a_color):
     async with aiohttp.ClientSession() as session:
         async with async_timeout.timeout(config.seconds_for_timeout):
             async with session.put(
@@ -148,6 +170,7 @@ async def put_tide_color(config, a_color):
             ) as response:
                 return await response.text()
 
+
 def create_url(config, local_namespace, args):
     """generate a URL to fetch local weather data from Weather Underground using
     configuration data"""
@@ -156,6 +179,7 @@ def create_url(config, local_namespace, args):
         local_namespace.state_code,
         local_namespace.city_name
     )
+
 
 required_config = Namespace()
 required_config.add_option(
@@ -200,4 +224,4 @@ if __name__ == '__main__':
     config = configuration(required_config)
 
     event_loop = asyncio.get_event_loop()
-    event_loop.run_until_complete(control_tide(config))
+    event_loop.run_until_complete(control_tide_light(config))
