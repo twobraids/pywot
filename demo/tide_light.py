@@ -44,7 +44,7 @@ async def get_tide_table(last_tide=None):
             # 2 - length of tide
             raw_future_tides[i + 1][1] - t,
             # 3 - time between tides
-            (raw_future_tides[i + 1][1] - t) / 180
+            (raw_future_tides[i + 1][1] - t) / 120
         ))
 
     if last_tide == None:
