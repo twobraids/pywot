@@ -12,10 +12,17 @@ from configman import (
 
 async def get_tide_table(config, last_tide_in_the_past=None):
     # get the tide data from Weather Underground
-    async with aiohttp.ClientSession() as session:
-        async with async_timeout.timeout(config.seconds_for_timeout):
-            async with session.get(config.target_url) as response:
-                raw_tide_data = json.loads(await response.text())
+    while True:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with async_timeout.timeout(config.seconds_for_timeout):
+                    async with session.get(config.target_url) as response:
+                        raw_tide_data = json.loads(await response.text())
+                        break
+        except Exception as e:
+            print('reading Weather Underground:', e)
+            print('retrying after 20 second pause')
+            asyncio.sleep(20.0)
 
     # The raw tide data has junk in it that we don't want
     # Pare it down to just the High Tide and Low Tide events
@@ -157,18 +164,25 @@ async def control_tide_light(config):
 
 
 async def change_bulb_color(config, a_color):
-    async with aiohttp.ClientSession() as session:
-        async with async_timeout.timeout(config.seconds_for_timeout):
-            async with session.put(
-                "http://gateway.local/things/{}/properties/color".format(config.thing_id),
-                headers={
-                    'Accept': 'application/json',
-                    'Authorization': 'Bearer {}'.format(config.thing_gateway_auth_key),
-                    'Content-Type': 'application/json'
-                },
-                data='{{"color": "{}"}}'.format(a_color)
-            ) as response:
-                return await response.text()
+    while True:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with async_timeout.timeout(config.seconds_for_timeout):
+                    async with session.put(
+                        "http://gateway.local/things/{}/properties/color".format(config.thing_id),
+                        headers={
+                            'Accept': 'application/json',
+                            'Authorization': 'Bearer {}'.format(config.thing_gateway_auth_key),
+                            'Content-Type': 'application/json'
+                        },
+                        data='{{"color": "{}"}}'.format(a_color)
+                    ) as response:
+                        return await response.text()
+        except aiohttp.client_exceptions.ClientConnectorError as e:
+            print ('error while contacting gateway.local:', e)
+            print ('retrying after 20 second pause')
+            asyncio.sleep(20.0)
+
 
 
 def create_url(config, local_namespace, args):
