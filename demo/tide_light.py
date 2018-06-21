@@ -208,7 +208,7 @@ required_config.add_option(
     'weather_underground_api_key',
     doc='the api key to access Weather Underground data',
     short_form="K",
-    default="c5410a6a36d2e304"
+    default="WEATHER UNDERGROUND ACCESS KEY"
 )
 required_config.add_option(
     'state_code',
@@ -233,13 +233,12 @@ required_config.add_option(
     'things_gateway_auth_key',
     doc='the api key to access the Things Gateway',
     short_form="G",
-    secret=True,
-    default='eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImRjYTVkMTQ0LTBkNjAtNDkzYS1iMDU0LWI1NGM0NzBjZDRhYyJ9.eyJjbGllbnRfaWQiOiJsb2NhbC10b2tlbiIsInJvbGUiOiJhY2Nlc3NfdG9rZW4iLCJzY29wZSI6Ii90aGluZ3M6cmVhZHdyaXRlIiwiaWF0IjoxNTI5NDM3MjE1fQ.dUp15a2Qyu6PeaXZYozpySfxkl_gZOsbaDtuzX-6aEY5vVw78H5OKFQIqbnGvmRvPyBHK1xfSMlq4FKxRmfusA',
+    default='THINGS GATEWAY AUTH KEY',
 )
 required_config.add_option(
     'thing_id',
     doc='the id of the color bulb to control',
-    default="zb-0017880103415d70"
+    default="TIDE LIGHT THING ID"
 )
 required_config.update(logging_config)
 
