@@ -37,18 +37,24 @@ async def get_tide_table(config, last_tide_in_the_past=None):
     # gives in the tide data (sunset, sunrise, moonset, moonrise,
     # moon phase, ...)
     raw_tide_list = []
-    for item in raw_tide_data["tide"]["tideSummary"]:
-        if item["data"]["type"] in ("High Tide", "Low Tide"):
-            raw_tide_list.append((
-                item["data"]["type"],
-                datetime(
-                    int(item["date"]["year"]),
-                    int(item["date"]["mon"]),
-                    int(item["date"]["mday"]),
-                    int(item["date"]["hour"]),
-                    int(item["date"]["min"]),
-                )
-            ))
+    try:
+        for item in raw_tide_data["tide"]["tideSummary"]:
+            if item["data"]["type"] in ("High Tide", "Low Tide"):
+                raw_tide_list.append((
+                    item["data"]["type"],
+                    datetime(
+                        int(item["date"]["year"]),
+                        int(item["date"]["mon"]),
+                        int(item["date"]["mday"]),
+                        int(item["date"]["hour"]),
+                        int(item["date"]["min"]),
+                    )
+                ))
+    except KeyError:
+        logging.error(
+            'Weather Underground is not currently supplying Tide data for this location'
+        )
+        raise Exception('Bad Location')
 
     # Now create a more useful list of tide events as tuples of
     # (TideType, TideTime, TimeToNextTide, StepTimeForNextTide
