@@ -3,15 +3,22 @@ import json
 import asyncio
 import aiohttp
 import async_timeout
+import logging
+
 from datetime import datetime
 from configman import (
     Namespace,
     configuration
 )
+from pywot import (
+    logging_config,
+    log_config
+)
 
 
 async def get_tide_table(config, last_tide_in_the_past=None):
     # get the tide data from Weather Underground
+    logging.info('loading new tide table')
     while True:
         try:
             async with aiohttp.ClientSession() as session:
@@ -20,8 +27,8 @@ async def get_tide_table(config, last_tide_in_the_past=None):
                         raw_tide_data = json.loads(await response.text())
                         break
         except Exception as e:
-            print('reading Weather Underground:', e)
-            print('retrying after 20 second pause')
+            logging.error('problem reading {}: {}'.format(config.target_url, e))
+            logging.info('retrying after 20 second pause')
             asyncio.sleep(20.0)
 
     # The raw tide data has junk in it that we don't want
@@ -44,21 +51,21 @@ async def get_tide_table(config, last_tide_in_the_past=None):
             ))
 
     # Now create a more useful list of tide events as tuples of
-    # (TideType, TideTime, TideLength, TideIncrementLength)
+    # (TideType, TideTime, TimeToNextTide, StepTimeForNextTide
     future_tides_list = []
-    # for i, (x, t) in enumerate(raw_future_tides[:-1]):  #TODO
-    for i, (x, t) in enumerate(raw_tide_list[:2]):
+    for i, (tide_type_str, tide_datetime) in enumerate(raw_tide_list[:-1]):
         future_tides_list.append((
-            x,
-            t,
-            raw_tide_list[i + 1][1] - t,
-            (raw_tide_list[i + 1][1] - t) / 120
+            tide_type_str,  # TideType
+            tide_datetime,  # TideTime
+            raw_tide_list[i + 1][1] - tide_datetime,  # TimeToNextTide
+            (raw_tide_list[i + 1][1] - tide_datetime) / 120  # StepTimeForNextTide
         ))
 
     # We need the last tide event, but Weather Underground only gives us
     # future events.  Guess about timing of the previous tide was if it wasn't
     # already passed in to this method
     if last_tide_in_the_past is None:
+        logging.debug('no previous tide information, guessing...')
         last_tide_in_the_past = (
             "Low Tide" if future_tides_list[0][0] == "High Tide" else "High Tide",
             future_tides_list[0][1] - future_tides_list[0][2],
@@ -79,6 +86,7 @@ async def tide_iterator(config):
     tide_table = await get_tide_table(config)
     while True:
         for a_tide in tide_table:
+            logging.info('previous {} at {}'.format(a_tide[0], a_tide[1]))
             yield a_tide
         # we've exhausted the current tide table. Get the next one,
         # but preload it with the most recent tide event in the past
@@ -138,13 +146,15 @@ async def control_tide_light(config):
     # loop over all the tide events
     async for a_tide in tide_iterator(config):
         step_time = a_tide[1]
+        if a_tide[0] == "Low Tide":
+            a_color_list = low_to_high_color_list
+            logging.debug('using low to high color set')
+        else:
+            a_color_list = high_to_low_color_list
+            logging.debug('using high to low color set')
         # divide the time between the last tide in the past with the
         # next tide in the future into 120 time segments: one color for each
         for step in range(120):
-            if a_tide[0] == "Low Tide":
-                a_color_list = low_to_high_color_list
-            else:
-                a_color_list = high_to_low_color_list
             now = datetime.now()
             if now > step_time:
                 # if we're ahead of the correct time, for example, during initial
@@ -154,9 +164,8 @@ async def control_tide_light(config):
                 # synchronizing with the correct color for the current time.
                 step_time += a_tide[3]
                 continue
-            print("now: {}  step:{}  previous:{}".format(now, step_time, a_tide[1]))
-            print("set ", a_color_list[step])
-            print("wait ", a_tide[3].seconds)
+            logging.debug("step:{} wait:{}".format(step_time, a_tide[3]))
+            logging.info("setting color: {}".format(a_color_list[step]))
             await change_bulb_color(config, a_color_list[step])
             await asyncio.sleep(a_tide[3].seconds)
             step_time += a_tide[3]
@@ -171,15 +180,15 @@ async def change_bulb_color(config, a_color):
                         "http://gateway.local/things/{}/properties/color".format(config.thing_id),
                         headers={
                             'Accept': 'application/json',
-                            'Authorization': 'Bearer {}'.format(config.thing_gateway_auth_key),
+                            'Authorization': 'Bearer {}'.format(config.things_gateway_auth_key),
                             'Content-Type': 'application/json'
                         },
                         data='{{"color": "{}"}}'.format(a_color)
                     ) as response:
                         return await response.text()
         except aiohttp.client_exceptions.ClientConnectorError as e:
-            print ('error while contacting gateway.local:', e)
-            print ('retrying after 20 second pause')
+            logging.error('problem contacting http:/gateway.local: {}'.format(e))
+            logging.info('retrying after 20 second pause')
             asyncio.sleep(20.0)
 
 
@@ -221,9 +230,10 @@ required_config.add_option(
     default=10
 )
 required_config.add_option(
-    'thing_gateway_auth_key',
+    'things_gateway_auth_key',
     doc='the api key to access the Things Gateway',
     short_form="G",
+    secret=True,
     default='eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImRjYTVkMTQ0LTBkNjAtNDkzYS1iMDU0LWI1NGM0NzBjZDRhYyJ9.eyJjbGllbnRfaWQiOiJsb2NhbC10b2tlbiIsInJvbGUiOiJhY2Nlc3NfdG9rZW4iLCJzY29wZSI6Ii90aGluZ3M6cmVhZHdyaXRlIiwiaWF0IjoxNTI5NDM3MjE1fQ.dUp15a2Qyu6PeaXZYozpySfxkl_gZOsbaDtuzX-6aEY5vVw78H5OKFQIqbnGvmRvPyBHK1xfSMlq4FKxRmfusA',
 )
 required_config.add_option(
@@ -231,10 +241,16 @@ required_config.add_option(
     doc='the id of the color bulb to control',
     default="zb-0017880103415d70"
 )
+required_config.update(logging_config)
 
 if __name__ == '__main__':
 
     config = configuration(required_config)
+    logging.basicConfig(
+        level=config.logging_level,
+        format=config.logging_format
+    )
+    log_config(config)
 
     event_loop = asyncio.get_event_loop()
     event_loop.run_until_complete(control_tide_light(config))
