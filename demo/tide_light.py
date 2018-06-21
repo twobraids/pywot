@@ -55,6 +55,11 @@ async def get_tide_table(config, last_tide_in_the_past=None):
             'Weather Underground is not currently supplying Tide data for this location'
         )
         raise Exception('Bad Location')
+    if not len(raw_tide_list):
+        logging.error(
+            'Weather Underground is not currently supplying Tide data for this location'
+        )
+        raise Exception('Bad Location')
 
     # Now create a more useful list of tide events as tuples of
     # (TideType, TideTime, TimeToNextTide, StepTimeForNextTide
@@ -196,7 +201,6 @@ async def change_bulb_color(config, a_color):
             logging.error('problem contacting http:/gateway.local: {}'.format(e))
             logging.info('retrying after 20 second pause')
             asyncio.sleep(20.0)
-
 
 
 def create_url(config, local_namespace, args):
