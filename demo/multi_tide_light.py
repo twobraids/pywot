@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-
-# Demonstrate the Things API by controlling a light within the Things Gateway
-# from outside the Things Gateway.  This code uses the Things Gateway RESTful API
-# to control a Philips HUE bulb.  The program uses transitions in color to mirror the
-# real time phase and trend of the tide at a configurable location.
-
 import json
 import asyncio
 import aiohttp
 import async_timeout
 import logging
 
+# Demonstrate the Things API by controlling a light within the Things Gateway
+# from outside the Things Gateway.  This code uses the Things Gateway RESTful API
+# to control a set of Philips HUE bulbs.  The program uses transitions in color to mirror the
+# real time phase and trend of the tide at a set of configurable locations.
+
 from datetime import datetime
 from configman import (
     Namespace,
+    RequiredConfig,
     configuration
 )
 from pywot import (
@@ -35,7 +35,8 @@ async def get_tide_table(config, last_tide_in_the_past=None):
         except Exception as e:
             logging.error('problem reading {}: {}'.format(config.target_url, e))
             logging.info('retrying after 20 second pause')
-            asyncio.sleep(20.0)
+#             asyncio.sleep(20.0)
+            raise
 
     # The raw tide data has junk in it that we don't want
     # Pare it down to just the High Tide and Low Tide events
@@ -82,7 +83,10 @@ async def get_tide_table(config, last_tide_in_the_past=None):
     # future events.  Guess about timing of the previous tide was if it wasn't
     # already passed in to this method
     if last_tide_in_the_past is None:
-        logging.debug('no previous tide information, guessing...')
+        logging.debug('{}, {} no previous tide information, guessing...'.format(
+                config.city_name,
+                config.state_code,
+        ))
         last_tide_in_the_past = (
             "Low Tide" if future_tides_list[0][0] == "High Tide" else "High Tide",
             future_tides_list[0][1] - future_tides_list[0][2],
@@ -99,11 +103,16 @@ async def get_tide_table(config, last_tide_in_the_past=None):
 
 
 async def tide_iterator(config):
-    # Create a never ending generator of tide events
+    # Create a never ending generator of high/low tide events
     tide_table = await get_tide_table(config)
     while True:
         for a_tide in tide_table:
-            logging.info('previous {} at {}UTC'.format(a_tide[0], a_tide[1]))
+            logging.info('{}, {} previous {} at {}UTC'.format(
+                config.city_name,
+                config.state_code,
+                a_tide[0],
+                a_tide[1]
+            ))
             yield a_tide
         # we've exhausted the current tide table. Get the next one,
         # but preload it with the most recent tide event in the past
@@ -159,35 +168,6 @@ high_to_low_color_list = [
 ]
 
 
-async def control_tide_light(config):
-    # loop over all the tide events
-    async for a_tide in tide_iterator(config):
-        step_time = a_tide[1]
-        if a_tide[0] == "Low Tide":
-            a_color_list = low_to_high_color_list
-            logging.debug('using low to high color set')
-        else:
-            a_color_list = high_to_low_color_list
-            logging.debug('using high to low color set')
-        # divide the time between the last tide in the past with the
-        # next tide in the future into 120 time segments: one color for each
-        for step in range(120):
-            now = datetime.utcnow()
-            if now > step_time:
-                # if we're ahead of the correct time, for example, during initial
-                # startup when not perfectly aligned with the most recent tide,
-                # increment the step_time, but skip setting the tide light color
-                # and waiting.  This fast forwards the loop to the current time,
-                # synchronizing with the correct color for the current time.
-                step_time += a_tide[3]
-                continue
-            logging.debug("step:{}UTC wait:{}".format(step_time, a_tide[3]))
-            logging.info("setting color: {}".format(a_color_list[step]))
-            await change_bulb_color(config, a_color_list[step])
-            await asyncio.sleep(a_tide[3].seconds)
-            step_time += a_tide[3]
-
-
 async def change_bulb_color(config, a_color):
     while True:
         try:
@@ -209,6 +189,89 @@ async def change_bulb_color(config, a_color):
             asyncio.sleep(20.0)
 
 
+async def control_tide_light(config):
+    # loop over all the tide events
+
+    async for a_tide in tide_iterator(config):
+        step_time = a_tide[1]
+        if a_tide[0] == "Low Tide":
+            a_color_list = low_to_high_color_list
+            logging.debug('{}, {} using low to high color set'.format(
+                config.city_name,
+                config.state_code
+            ))
+        else:
+            a_color_list = high_to_low_color_list
+            logging.debug('{}, {} using high to low color set'.format(
+                config.city_name,
+                config.state_code
+            ))
+        # divide the time between the last tide in the past with the
+        # next tide in the future into 120 time segments: one color for each
+        for step in range(120):
+            now = datetime.utcnow()
+            if now > step_time:
+                # if we're ahead of the correct time, for example, during initial
+                # startup when not perfectly aligned with the most recent tide,
+                # increment the step_time, but skip setting the tide light color
+                # and waiting.  This fast forwards the loop to the current time,
+                # synchronizing with the correct color for the current time.
+                step_time += a_tide[3]
+                continue
+            logging.debug("{}, {} step:{}UTC wait:{}".format(
+                config.city_name,
+                config.state_code,
+                step_time, a_tide[3]
+            ))
+            logging.info("{}, {} setting color: {}".format(
+                config.city_name,
+                config.state_code,
+                a_color_list[step]
+            ))
+            await change_bulb_color(config, a_color_list[step])
+            await asyncio.sleep(a_tide[3].seconds)
+            step_time += a_tide[3]
+
+
+async def run_all_tide_lights(config):
+    # invoke all the tide lights by marrying the control_tide_light coroutine
+    # with the appropriate part of the configuration for each tide light.
+    # This creates a list of coroutine objects to be gathered and executed.
+    tide_light_coroutines = [
+        control_tide_light(config[a_tide_light_namespace_name])
+        for a_tide_light_namespace_name in config.tide_light_collection.subordinate_namespace_names
+    ]
+    await asyncio.gather(*tide_light_coroutines)
+
+
+# The following section defines a structured configuration document in the form
+# a nested Mapping of configuration keys to configuration values.  Each entry
+# contains a name, documentation string, a default value, plus other optional
+# components. This will servce to define command-line arguments, and the structure
+# of configuration files.
+
+# This program can run many tide lights at the same time.  This namespace represents
+# the configuration data required for each unique tide light: location and
+# the id of the bulb to control
+tide_light_config = Namespace()
+tide_light_config.add_option(
+    'state_code',
+    doc='the two letter state code',
+    default="OR",
+)
+tide_light_config.add_option(
+    'city_name',
+    doc='the name of the city',
+    default="Waldport",
+)
+tide_light_config.add_option(
+    'thing_id',
+    doc='the id of the color bulb to control',
+    default="TIDE LIGHT THING ID"
+)
+
+
+# this defines a constant based solely on configuration data
 def create_url(config, local_namespace, args):
     """generate a URL to fetch local weather data from Weather Underground using
     configuration data"""
@@ -219,48 +282,77 @@ def create_url(config, local_namespace, args):
     )
 
 
-required_config = Namespace()
-required_config.add_option(
+tide_light_config.add_aggregation(
+    'target_url',
+    function=create_url
+)
+
+# these are the common configuration parameters that will be used for all tide
+# lights.
+base_required_config = Namespace()
+base_required_config.add_option(
     'weather_underground_api_key',
     doc='the api key to access Weather Underground data',
     short_form="K",
     default="WEATHER UNDERGROUND ACCESS KEY"
 )
-required_config.add_option(
-    'state_code',
-    doc='the two letter state code',
-    default="OR",
-)
-required_config.add_option(
-    'city_name',
-    doc='the name of the city',
-    default="Waldport",
-)
-required_config.add_aggregation(
-    'target_url',
-    function=create_url
-)
-required_config.add_option(
-    'seconds_for_timeout',
-    doc='the number of seconds to allow for fetching weather data',
-    default=10
-)
-required_config.add_option(
+base_required_config.add_option(
     'things_gateway_auth_key',
     doc='the api key to access the Things Gateway',
     short_form="G",
     default='THINGS GATEWAY AUTH KEY',
 )
-required_config.add_option(
-    'thing_id',
-    doc='the id of the color bulb to control',
-    default="TIDE LIGHT THING ID"
+base_required_config.add_option(
+    'seconds_for_timeout',
+    doc='the number of seconds to allow for fetching tide data',
+    default=10
 )
-required_config.update(logging_config)
+
+
+# this is a configman helper function that creates the configuration
+# structure for the number of tide lights requested.  It creates a new namespace
+# for each requested bulb and puts the tide_light_config into each one.  It
+# encapsulates the namespaces into an instance of an object called TideLightCollection.
+# This object has a class attribute called required_config.  Configman
+# will automatically use that to fill out another layer of the structured
+# configuration document.
+def tide_config_setup(number_of_tide_lights):
+    class TideLightCollection(RequiredConfig):
+        required_config = Namespace()
+        subordinate_namespace_names = []
+        for tide_light_index in range(int(number_of_tide_lights)):
+            namespace_name_for_index = 'tide{}'.format(tide_light_index)
+            subordinate_namespace_names.append(namespace_name_for_index)
+            required_config[namespace_name_for_index] = Namespace()
+            required_config[namespace_name_for_index].update(tide_light_config)
+
+        def __repr__(self):
+            return number_of_tide_lights
+
+    return TideLightCollection()
+
+
+# the definition of the number_of_tide_lights config parameter says that the function
+# tide_config_setup should be used to convert any text input (from command line or
+# config files) into the collection of nested namespaces representing each individual
+# tide light.
+base_required_config.add_option(
+    'number_of_tide_lights',
+    doc='how many tide lights to set up',
+    default="1",
+    short_form="n",
+    from_string_converter=tide_config_setup
+)
+base_required_config.add_aggregation(
+    name='tide_light_collection',
+    function=lambda c, l, a: l.number_of_tide_lights
+)
+base_required_config.update(logging_config)
+
 
 if __name__ == '__main__':
 
-    config = configuration(required_config)
+    config = configuration([base_required_config])
     logging.basicConfig(
         level=config.logging_level,
         format=config.logging_format
@@ -268,4 +360,4 @@ if __name__ == '__main__':
     log_config(config)
 
     event_loop = asyncio.get_event_loop()
-    event_loop.run_until_complete(control_tide_light(config))
+    event_loop.run_until_complete(run_all_tide_lights(config))
