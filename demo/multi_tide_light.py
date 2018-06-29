@@ -239,7 +239,7 @@ async def run_all_tide_lights(config):
     # This creates a list of coroutine objects to be gathered and executed.
     tide_light_coroutines = [
         control_tide_light(config[a_tide_light_namespace_name])
-        for a_tide_light_namespace_name in config.tide_light_collection.subordinate_namespace_names
+        for a_tide_light_namespace_name in config.tide_light_name_list
     ]
     await asyncio.gather(*tide_light_coroutines)
 
@@ -319,10 +319,14 @@ base_required_config.add_option(
 def tide_config_setup(number_of_tide_lights):
     class TideLightCollection(RequiredConfig):
         required_config = Namespace()
-        subordinate_namespace_names = []
+        required_config.add_aggregation(
+            name='tide_light_name_list',
+            function=lambda c, l, a: TideLightCollection.tide_light_name_list
+        )
+        tide_light_name_list = []
         for tide_light_index in range(int(number_of_tide_lights)):
             namespace_name_for_index = 'tide{}'.format(tide_light_index)
-            subordinate_namespace_names.append(namespace_name_for_index)
+            tide_light_name_list.append(namespace_name_for_index)
             required_config[namespace_name_for_index] = Namespace()
             required_config[namespace_name_for_index].update(tide_light_config)
 
@@ -342,10 +346,6 @@ base_required_config.add_option(
     default="1",
     short_form="n",
     from_string_converter=tide_config_setup
-)
-base_required_config.add_aggregation(
-    name='tide_light_collection',
-    function=lambda c, l, a: l.number_of_tide_lights
 )
 base_required_config.update(logging_config)
 
