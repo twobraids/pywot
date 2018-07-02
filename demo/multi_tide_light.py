@@ -35,7 +35,7 @@ async def get_tide_table(config, last_tide_in_the_past=None):
         except Exception as e:
             logging.error('problem reading {}: {}'.format(config.target_url, e))
             logging.info('retrying after 20 second pause')
-             asyncio.sleep(20.0)
+            asyncio.sleep(20.0)
             raise
 
     # The raw tide data has junk in it that we don't want
