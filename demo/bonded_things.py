@@ -44,7 +44,6 @@ async def monitor_and_propagate_state(config, thing_id):
                     config.things_gateway_auth_key
                 ),
             ) as websocket:
-                logging.debug("thing: %s gets value")
                 async for message in websocket:
                     if supress_state_change:
                         logging.debug('%s suppress action', thing_id)
