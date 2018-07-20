@@ -206,7 +206,7 @@ async def change_bulb_color(config, a_color):
         except aiohttp.client_exceptions.ClientConnectorError as e:
             logging.error('problem contacting http:/gateway.local: {}'.format(e))
             logging.info('retrying after 20 second pause')
-            asyncio.sleep(20.0)
+            await asyncio.sleep(20.0)
 
 
 def create_url(config, local_namespace, args):
