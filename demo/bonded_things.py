@@ -105,7 +105,7 @@ async def change_property(config, a_thing, a_property, a_value):
         except aiohttp.client_exceptions.ClientConnectorError as e:
             logging.error('problem contacting http:/gateway.local: {}'.format(e))
             logging.info('retrying after 20 second pause')
-            asyncio.sleep(20.0)
+            await asyncio.sleep(20.0)
 
 
 async def bond_things_together(config):
