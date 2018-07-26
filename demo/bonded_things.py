@@ -51,14 +51,14 @@ async def monitor_and_propagate_state(config, thing_id):
                         continue
                     logging.debug(message)
                     raw = json.loads(message)
-                    if raw['messageType'] == 'propertyStatus':
-                        a_property = list(raw["data"].keys())[0]
-                        a_value = raw["data"][a_property]
-                        logging.debug("propagate send %s %s", a_property, a_value)
-                    for i in range(len(config.list_of_thing_ids) - 1):
-                        # put as many True values as we have bonded things
-                        supress_state_change.append(True)
-                    change_property_for_all_things(config, thing_id, a_property, a_value)
+                    for a_property in raw["data"].keys():
+                        if raw['messageType'] == 'propertyStatus':
+                            a_value = raw["data"][a_property]
+                            logging.debug("propagate send %s %s", a_property, a_value)
+                        for i in range(len(config.list_of_thing_ids) - 1):
+                            # put as many True values as we have bonded things
+                            supress_state_change.append(True)
+                        change_property_for_all_things(config, thing_id, a_property, a_value)
         except websockets.exceptions.ConnectionClosed:
             # the connection has unexpectedly closed.
             # re-establish it by continuing the loop
