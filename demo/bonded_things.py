@@ -26,15 +26,18 @@ from pywot import (
 # We open a web socket to each light so we can get notified of any state change.  On noting a
 # state change, we set that state in each of the other lights.  However, setting the state in
 # the other lights will also induce state change messages, those need to be suppressed or
-# we'll get a run away positive feedback situation.  Each time a state change is detected,
-# a True value is pushed onto the 'supress_state_change' list for each one of the slaved lights.
-# Before a light progates a reported state change, if there is anything in the
-# 'supress_state_change' list, the list is popped by one, and the state change is not
-# propagated further.
-supress_state_change = []
+# we'll get a run away positive feedback situation.  A solution is to use a counted semaphore.
+#
+# Each time a state change is detected, the detecting thread raises the counted semaphore to
+# the number of Web Things in the bonded group minus one.  Thereafter, if another thread receives
+# a state change message, it does not act on the message and decrements the counter.  Only when
+# the counter is at zero will a thread act on a state change.
+suppress_state_change = 0
 
 
 async def monitor_and_propagate_state(config, thing_id):
+    global suppress_state_change
+    suppress_state_change_max = len(config.list_of_thing_ids) - 1
     while True:
         # loop forever to re-establish the web socket if it fails for some reason
         try:
@@ -45,9 +48,9 @@ async def monitor_and_propagate_state(config, thing_id):
                 ),
             ) as websocket:
                 async for message in websocket:
-                    if supress_state_change:
+                    if suppress_state_change:
                         logging.debug('%s suppress action', thing_id)
-                        supress_state_change.pop()
+                        suppress_state_change -= 1
                         continue
                     logging.debug(message)
                     raw = json.loads(message)
@@ -55,9 +58,7 @@ async def monitor_and_propagate_state(config, thing_id):
                         if raw['messageType'] == 'propertyStatus':
                             a_value = raw["data"][a_property]
                             logging.debug("propagate send %s %s", a_property, a_value)
-                        for i in range(len(config.list_of_thing_ids) - 1):
-                            # put as many True values as we have bonded things
-                            supress_state_change.append(True)
+                        suppress_state_change = suppress_state_change_max
                         change_property_for_all_things(config, thing_id, a_property, a_value)
         except websockets.exceptions.ConnectionClosed:
             # the connection has unexpectedly closed.
