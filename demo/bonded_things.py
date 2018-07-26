@@ -71,13 +71,14 @@ def change_property_for_all_things(config, master_thing_id, a_property, a_value)
             asyncio.ensure_future(change_property(config, a_thing_id, a_property, a_value))
 
 
-def quote_strings(value):
+def format_for_json_output(value):
     if isinstance(value, str):
-        return '"{}"'.format(value)
-    return value
+        return '"{}"'.format(value).lower()
+    return str(value).lower()
 
 
 async def change_property(config, a_thing, a_property, a_value):
+    a_value_formatted = format_for_json_output(a_value)
     while True:
         try:
             async with aiohttp.ClientSession() as session:
@@ -94,12 +95,12 @@ async def change_property(config, a_thing, a_property, a_value):
                         },
                         data='{{"{}": {}}}'.format(
                             a_property,
-                            str(quote_strings(a_value)).lower()
+                            a_value_formatted
                         )
                     ) as response:
                         logging.debug('sent %s', '{{"{}": {}}}'.format(
                             a_property,
-                            str(quote_strings(a_value)).lower()
+                            a_value_formatted
                         ))
                         return await response.text()
         except aiohttp.client_exceptions.ClientConnectorError as e:
