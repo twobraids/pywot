@@ -66,9 +66,13 @@ async def monitor_and_propagate_state(config, thing_id):
 
 
 def change_property_for_all_things(config, master_thing_id, a_property, a_value):
-    for a_thing_id in config.list_of_thing_ids:
-        if a_thing_id != master_thing_id:
-            asyncio.ensure_future(change_property(config, a_thing_id, a_property, a_value))
+    asyncio.ensure_future(
+        asyncio.gather(*(
+            change_property(config, a_thing_id, a_property, a_value)
+                for a_thing_id in config.list_of_thing_ids
+                if a_thing_id != master_thing_id
+        ))
+    )
 
 
 def format_for_json_output(value):
