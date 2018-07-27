@@ -26,9 +26,9 @@ from pywot import (
 # We open a web socket to each light so we can get notified of any state change.  On noting a
 # state change, we set that state in each of the other lights.  However, setting the state in
 # the other lights will also induce state change messages, those need to be suppressed or
-# we'll get a run away positive feedback situation.  A solution is to use a counted semaphore.
+# we'll get a run away positive feedback situation.  A solution is to use a counter.
 #
-# Each time a state change is detected, the detecting thread raises the counted semaphore to
+# Each time a state change is detected, the detecting thread raises the counter to
 # the number of Web Things in the bonded group minus one.  Thereafter, if another thread receives
 # a state change message, it does not act on the message and decrements the counter.  Only when
 # the counter is at zero will a thread act on a state change.
@@ -47,19 +47,18 @@ async def monitor_and_propagate_state(config, thing_id):
                     config.things_gateway_auth_key
                 ),
             ) as websocket:
-                async for message in websocket:
-                    if suppress_state_change:
-                        logging.debug('%s suppress action', thing_id)
-                        suppress_state_change -= 1
-                        continue
-                    logging.debug(message)
-                    raw = json.loads(message)
-                    for a_property in raw["data"].keys():
-                        if raw['messageType'] == 'propertyStatus':
-                            a_value = raw["data"][a_property]
+                async for a_message_txt in websocket:
+                    a_message = json.loads(a_message_txt)
+                    if a_message['messageType'] == 'propertyStatus':
+                        if suppress_state_change:
+                            logging.debug('%s suppress action', thing_id)
+                            suppress_state_change -= 1
+                            continue
+                        for a_property in a_message["data"].keys():
+                            a_value = a_message["data"][a_property]
                             logging.debug("propagate send %s %s", a_property, a_value)
-                        suppress_state_change = suppress_state_change_max
-                        change_property_for_all_things(config, thing_id, a_property, a_value)
+                            suppress_state_change = suppress_state_change_max
+                            change_property_for_all_things(config, thing_id, a_property, a_value)
         except websockets.exceptions.ConnectionClosed:
             # the connection has unexpectedly closed.
             # re-establish it by continuing the loop
@@ -115,7 +114,6 @@ async def change_property(config, a_thing, a_property, a_value):
 
 
 async def bond_things_together(config):
-    logging.debug('list: %s', config.list_of_thing_ids)
     for a_thing_id in config.list_of_thing_ids:
         asyncio.ensure_future(
             monitor_and_propagate_state(config, a_thing_id)
