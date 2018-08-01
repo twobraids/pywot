@@ -97,11 +97,7 @@ class WoTProperty:
     def __set__(self, thing_instance, new_value):
         # to serve as a Python descriptor, we provide a __set__ method to set a new value
         # for the Property in the underlying WoT Thing instance.
-        logging.debug('__set__ for {} {} with {}'.format(self.name, thing_instance, new_value))
-        logging.debug('property {}: {}'.format(self.name, thing_instance.properties[self.name]))
-        logging.debug('property {}: {}'.format(self.name, thing_instance.properties[self.name].value.last_value))
         thing_instance.properties[self.name].value.notify_of_external_update(new_value)
-        logging.debug('END __set__ ')
 
     def create_wot_property(
         self,

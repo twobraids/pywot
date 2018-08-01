@@ -71,7 +71,17 @@ class SceneThing(WoTThing):
             "thing",
             "A controller for scenes"
         )
-        self.participants = {}
+        self.state_file_name = '{}.json'.format(self.name)
+        try:
+            with open(self.state_file_name) as state_file:
+                self.participants = json.load(state_file)
+        except FileNotFoundError:
+            logging.info('no scene state file found for %s', self.state_file_name)
+            self.participants = {}
+        except json.decoder.JSONDecodeError:
+            logging.info('bad file format for %s', self.state_file_name)
+            self.participants = {}
+
         self.listeners = []
         self.preserved_state = {}
 
@@ -195,6 +205,8 @@ class SceneThing(WoTThing):
         logging.info('stop_learing:  this is what I learned:')
         for a_thing_id, a_change_set in self.participants.items():
             logging.info('    {}: {}'.format(a_thing_id, a_change_set))
+        with open(self.state_file_name, 'w') as state_file:
+            json.dump(self.participants, state_file)
 
     async def capture_current_state(self, a_thing_id, a_change_set):
         self.preserved_state[a_thing_id] = {}
