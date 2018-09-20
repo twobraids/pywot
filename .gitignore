@@ -99,3 +99,20 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# config
+.ini
+demo/*ini
+.json
+demo/*json
+
+# wing project
+*.wpr
+*.wpu
+
+# other
+*.dia
+
+
+
+

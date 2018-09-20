@@ -110,7 +110,10 @@ class SceneThing(WoTThing):
                         'Content-Type': 'application/json'
                     }
                 ) as response:
-                    return json.loads(await response.text())
+                    all_things = json.loads(await response.text())
+                    print(json.dumps(all_things))
+                    return all_things
+
 
     @staticmethod
     def quote_strings(a_value):
