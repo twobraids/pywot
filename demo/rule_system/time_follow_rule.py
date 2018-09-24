@@ -11,7 +11,7 @@ from pywot.rules import (
     run_main,
 )
 from pywot.rule_triggers import (
-    AbsoluteTimeTrigger
+    AbsoluteTimeWithDurationTrigger
 )
 
 from follow_everything_rule import FollowRule
@@ -20,7 +20,7 @@ from follow_everything_rule import FollowRule
 class TimedRule(Rule):
 
     def register_triggers(self):
-        my_timer = AbsoluteTimeTrigger( "my_timer", "12:10:00", '1s', '2s', 10)
+        my_timer = AbsoluteTimeWithDurationTrigger( "my_timer", "12:10:00", '1s', '2s', 10)
         return (my_timer,)
 
     def action(self, *args):

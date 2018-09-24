@@ -46,14 +46,11 @@ class RuleSystem(RequiredConfig):
 
     async def initialize(self):
         self.all_things = await self.get_all_things()
-        for a_thing in self.all_things:
-            logging.debug('%s:', a_thing.name)
-        self.set_of_participating_things = set()
+        self.set_of_participating_things = set(self.all_things)
 
     def find_in_all_things(self, name_of_thing):
         for a_thing in self.all_things:
             if a_thing.name == name_of_thing:
-                logging.debug('type of thing: %s', a_thing)
                 return a_thing
 
     def add_rule(self, a_rule):
@@ -87,10 +84,10 @@ class RuleSystem(RequiredConfig):
 
     async def go(self):
         logging.debug('go')
-        for a_thing in self.set_of_participating_things:
-            logging.debug('%s %s', a_thing.name, a_thing.participating_rules)
+        for a_trigger in self.set_of_participating_things:
+            logging.debug('%s %s', a_trigger.name, a_trigger.participating_rules)
             asyncio.ensure_future(
-                a_thing.monitor_state()
+                a_trigger.trigger_dection_loop()
             )
 
 
@@ -132,7 +129,12 @@ class Rule:
         for a_thing in self.participating_things.values():
             setattr(self, as_python_identifier(a_thing.name), a_thing)
 
+        self.initial_state()
+
         logging.debug('rule predicate things %s', self.participating_things)
+
+    def initial_state(self):
+        pass
 
     def register_triggers(self,):
         return ()
@@ -206,7 +208,7 @@ def make_thing(config, meta_definition):
                     logging.info('change_property: retrying after 20 second pause')
                     await asyncio.sleep(20.0)
 
-        async def monitor_state(self):
+        async def trigger_dection_loop(self):
             async with websockets.connect(
                 '{}?jwt={}'.format(
                     self.web_socket_link,

@@ -13,7 +13,7 @@ class RuleTrigger():
         self.name = name
         self.participating_rules = []
 
-    def _apply_rules(self, a_property_name, a_value):
+    def _apply_rules(self, a_property_name=None, a_value=None):
         for a_rule in self.participating_rules:
             a_rule.action(self, a_property_name, a_value)
 
@@ -37,7 +37,7 @@ class TimeBasedTrigger(RuleTrigger):
         return difference.seconds
 
     @staticmethod
-    def duration_str_to_int(duration_str):
+    def duration_str_to_seconds(duration_str):
         duration_str = str(duration_str)  # allows ints to be passed in
         duration_str = duration_str.strip()
         units = 'S'
@@ -47,7 +47,56 @@ class TimeBasedTrigger(RuleTrigger):
         return int(duration_str) * TimeBasedTrigger.scale[units]
 
 
+class HeartBeat(TimeBasedTrigger):
+    def __init__(
+        self,
+        name,
+        period_str
+        # duration should be a integer in string form with an optional
+        #    H, h, M, m, S, s, D, d  as a suffix to indicate units - default S
+    ):
+        super(HeartBeat, self).__init__(name)
+        self.period = self.duration_str_to_seconds(period_str)
+
+    async def trigger_dection_loop(self):
+        logging.debug('Starting heartbeat timer %s', self.period)
+        while True:
+            await asyncio.sleep(self.period)
+            logging.debug('%s beats', self.name)
+            self._apply_rules()
+
+
+
 class AbsoluteTimeTrigger(TimeBasedTrigger):
+    def __init__(
+        self,
+        name,
+        # time_of_day_str should be in the 24Hr form "HH:MM:SS"
+        time_of_day_str,
+    ):
+        super(AbsoluteTimeTrigger, self).__init__(name)
+        self.trigger_time = datetime.strptime(time_of_day_str, '%H:%M:%S').time()
+
+    async def trigger_dection_loop(self):
+        logging.debug('Starting timer %s', self.trigger_time)
+        logging.debug('there are %s participating rules', len(self.participating_rules))
+        time_until_trigger = self.time_difference_in_seconds(
+            self.trigger_time,
+            datetime.now().time()
+        )
+        while True:
+            time_until_trigger = self.time_difference_in_seconds(
+                self.trigger_time,
+                datetime.now().time()
+            )
+            logging.debug('timer triggers in %sS', time_until_trigger)
+            await asyncio.sleep(time_until_trigger)
+            self._apply_rules('activated', True)
+            await asyncio.sleep(1)
+
+
+
+class AbsoluteTimeWithDurationTrigger(TimeBasedTrigger):
     """This device will work as a rule trigger at a set time each day.  It optionally has a duration
     that will trigger when the duration ends after the set time.  It has another option to repeat
     the trigger and duration a set number of times after the initial absolute time trigger."""
@@ -63,7 +112,7 @@ class AbsoluteTimeTrigger(TimeBasedTrigger):
         repeat_every_str="0",
         max_repeats=0
     ):
-        super(AbsoluteTimeTrigger, self).__init__(name)
+        super(AbsoluteTimeWithDurationTrigger, self).__init__(name)
         # when 'activated' is True, the absolute time trigger has been activated and the
         # asynchronous monitor_state method is running
         self.activated = False
@@ -71,11 +120,11 @@ class AbsoluteTimeTrigger(TimeBasedTrigger):
         self.triggered = False
 
         self.trigger_time = datetime.strptime(time_of_day_str, '%H:%M:%S').time()
-        self.duration = self.duration_str_to_int(duration_str)
-        self.repeat_every = self.duration_str_to_int(repeat_every_str)
+        self.duration = self.duration_str_to_seconds(duration_str)
+        self.repeat_every = self.duration_str_to_seconds(repeat_every_str)
         self.max_repeats = max_repeats
 
-    async def monitor_state(self):
+    async def trigger_dection_loop(self):
         logging.debug('Starting timer %s', self.trigger_time)
         logging.debug('there are %s participating rules', len(self.participating_rules))
         time_until_trigger = self.time_difference_in_seconds(

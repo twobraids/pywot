@@ -15,20 +15,17 @@ from pywot.rule_triggers import (
 )
 
 
-class TimedRule(Rule):
+class AbsoluteTimeRule(Rule):
 
     def register_triggers(self):
-        self.my_timer = AbsoluteTimeTrigger("my_timer", "11:26:00", '1s', '2s', 20)
-        return ('Philips HUE 01', self.my_timer)
+        my_timer = AbsoluteTimeTrigger( "my_timer", "12:34:00")
+        return (my_timer,)
 
     def action(self, *args):
-        if self.Philips_HUE_01.on and self.my_timer.activated:
-            self.Philips_HUE_02.on = True
-        else:
-            self.Philips_HUE_02.on = False
+        self.Philips_HUE_02.on = True
 
 def main(config, rule_system):
-    my_rule = TimedRule(rule_system, 'twenty_seconds')
+    my_rule = AbsoluteTimeRule(rule_system, 'turn on at 12:00 every day')
     rule_system.add_rule(my_rule)
 
 
