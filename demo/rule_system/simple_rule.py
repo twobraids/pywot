@@ -21,7 +21,7 @@ class SimpleRule(Rule):
 
 
 def main(config, rule_system):
-    my_rule = SimpleRule(rule_system, '01 on means 02, 03, 04 on')
+    my_rule = SimpleRule(rule_system, 'if bulb 01 is turned on, then turn on 02, 03 and 04')
     rule_system.add_rule(my_rule)
 
 

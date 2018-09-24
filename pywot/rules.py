@@ -50,8 +50,10 @@ class RuleSystem(RequiredConfig):
 
     def find_in_all_things(self, name_of_thing):
         for a_thing in self.all_things:
+            logging.debug('thing: %s: %s', a_thing.name, a_thing)
             if a_thing.name == name_of_thing:
                 return a_thing
+        raise Exception('{} Cannot be found in all_things'.format(name_of_thing))
 
     def add_rule(self, a_rule):
         for a_thing in a_rule.participating_things.values():
@@ -126,7 +128,9 @@ class Rule:
         # as instance variables, this makes rules clearing to write
         for a_thing in self.rule_system.all_things:
             setattr(self, as_python_identifier(a_thing.name), a_thing)
+        logging.debug('participating things: %s', self.participating_things)
         for a_thing in self.participating_things.values():
+            logging.debug('offending thing %s', a_thing)
             setattr(self, as_python_identifier(a_thing.name), a_thing)
 
         self.initial_state()

@@ -18,7 +18,7 @@ from pywot.rule_triggers import (
 class AbsoluteTimeRule(Rule):
 
     def register_triggers(self):
-        my_timer = AbsoluteTimeTrigger( "my_timer", "12:34:00")
+        my_timer = AbsoluteTimeTrigger( "my_timer", "12:00:00")
         return (my_timer,)
 
     def action(self, *args):
