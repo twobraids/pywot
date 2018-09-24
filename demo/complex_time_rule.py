@@ -11,22 +11,18 @@ from pywot.rules import (
     run_main,
 )
 from pywot.rule_triggers import (
-    TimeDevice
+    AbsoluteTimeTrigger
 )
 
 
 class TimedRule(Rule):
-    def __init__(self, rule_system, name):
-        self.my_timer = TimeDevice(rule_system.config, "my_timer", "17:02:00", '1s', '2s', 20)
 
-        super(TimedRule, self).__init__(rule_system, name, 'Philips HUE 01', self.my_timer)
-
-    def predicate(self, *args):
-        logging.debug('predicate: %s %s', self.Philips_HUE_01.on, self.my_timer.triggered)
-        return self.Philips_HUE_01.on and self.my_timer.triggered
+    def register_triggers(self):
+        self.my_timer = AbsoluteTimeTrigger("my_timer", "11:26:00", '1s', '2s', 20)
+        return ('Philips HUE 01', self.my_timer)
 
     def action(self, *args):
-        if self.my_timer.activated:
+        if self.Philips_HUE_01.on and self.my_timer.activated:
             self.Philips_HUE_02.on = True
         else:
             self.Philips_HUE_02.on = False

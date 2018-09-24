@@ -134,7 +134,7 @@ class Rule:
 
         logging.debug('rule predicate things %s', self.participating_things)
 
-    def register_triggers(self, *args):
+    def register_triggers(self,):
         return ()
 
     def find_thing(self, a_thing_name):
