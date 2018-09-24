@@ -111,13 +111,3 @@ class AbsoluteTimeTrigger(TimeBasedTrigger):
             self._apply_rules('activated', False)
 
 
-class Timer(TimeBasedTrigger):
-    def __init__(self, name, time_between_triggers, start_time=None):
-        super(Timer, self).__init__(name)
-        self.time_between_triggers = self.duration_str_to_int(time_between_triggers)
-        if start_time:
-            self.start_time = datetime.strptime(time_of_day, '%H:%M:%S').time()
-
-    async def monitor_state(self):
-        pass
-
