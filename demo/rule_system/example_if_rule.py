@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
 import logging
 
-
-from pywot.rules import (
-    Rule,
-    run_main,
-)
+from pywot.rules import Rule
 
 
-class SimpleRule(Rule):
+class ExampleIfRule(Rule):
 
     def register_triggers(self):
-        return ('Philips HUE 01',)
+        return (self.Philips_HUE_01,)
 
     def action(self, *args):
         if self.Philips_HUE_01.on:
@@ -21,10 +17,13 @@ class SimpleRule(Rule):
 
 
 def main(config, rule_system):
-    my_rule = SimpleRule(rule_system, 'if bulb 01 is turned on, then turn on 02, 03 and 04')
+    my_rule = ExampleIfRule(rule_system, 'if 01 turns on, turn on the others')
     rule_system.add_rule(my_rule)
 
 
 if __name__ == '__main__':
+    from pywot.rules import run_main
+
     run_main(main)
+
     logging.debug('done.')

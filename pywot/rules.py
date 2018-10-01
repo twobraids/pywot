@@ -102,6 +102,13 @@ def as_python_identifier(a_name):
     return a_name
 
 
+class Thing:
+    # a base class for a family of objects representing Things managed by the
+    # Things Gateway.  These objects will be defined at run time using the
+    # DerivedThing class within this module's 'make_thing' method
+    pass
+
+
 class Rule:
     def __init__(self, rule_system, name):
         self.rule_system = rule_system
@@ -111,23 +118,36 @@ class Rule:
         # change state.
         self.participating_things = {}
 
+        # entirely for convenience, put all potential things into the rule object
+        # as instance variables, this makes rules clearer to write
+        for a_thing in self.rule_system.all_things:
+            setattr(self, as_python_identifier(a_thing.name), a_thing)
+
+
         for a_participating_thing in self.register_triggers():
             if isinstance(a_participating_thing, str):
                 # if we've gotten a string, we assume it is the name of a
                 # thing in the Things Gateway.
                 name = a_participating_thing
-                self.participating_things[name] = self.find_thing(name)
+                try:
+                    self.participating_things[name] = self.find_thing(name)
+                except KeyError as e:
+                    logging.info('"%s" cannot be found in the list of all_things', name)
             else:
-                # it wasn't a string so we're going to assume it was an
-                # independent object like a timer.  It must have an instance
-                # variable called 'name'
+                # it wasn't a string so we're going to assume it all ready was an
+                # an object representing a thing.  No matter what type of object it
+                # was, it must have a "name" attribute.
                 name = a_participating_thing.name
                 self.participating_things[name] = a_participating_thing
+                if not isinstance(a_participating_thing, Thing):
+                    # objects of type Thing were added earlier, don't be redundant.
+                    setattr(
+                        self,
+                        as_python_identifier(a_participating_thing.name),
+                        a_participating_thing
+                    )
 
-        # entirely for convenience, put all potential things into the rule object
-        # as instance variables, this makes rules clearing to write
-        for a_thing in self.rule_system.all_things:
-            setattr(self, as_python_identifier(a_thing.name), a_thing)
+
         logging.debug('participating things: %s', self.participating_things)
         for a_thing in self.participating_things.values():
             logging.debug('offending thing %s', a_thing)
@@ -159,7 +179,7 @@ def make_thing(config, meta_definition):
 
             meta_definiton_as_dot_dict[replacement_key] = value
 
-    class Thing:
+    class DerivedThing(Thing):
         def __init__(self, config):
             self.config = config
             # meta_definition comes from the json representation of the thing
@@ -253,7 +273,7 @@ def make_thing(config, meta_definition):
         hidden_instance_name = '__{}'.format(a_python_property_name)
         logging.debug('hin: %s', hidden_instance_name)
         setattr(
-            Thing,
+            DerivedThing,
             a_python_property_name,
             property(
                 partial(get_property, hidden_instance_name),
@@ -261,7 +281,7 @@ def make_thing(config, meta_definition):
             )
         )
 
-    the_thing = Thing(config)
+    the_thing = DerivedThing(config)
 
     # find the websocket URI
     for a_link_dict in the_thing.meta_definition.links:
