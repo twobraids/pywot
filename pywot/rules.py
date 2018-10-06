@@ -220,17 +220,25 @@ def make_thing(config, meta_definition):
                     await asyncio.sleep(20.0)
 
         async def trigger_dection_loop(self):
-            async with websockets.connect(
-                '{}?jwt={}'.format(
-                    self.web_socket_link,
-                    self.config.things_gateway_auth_key
-                ),
-            ) as websocket:
-                async for message in websocket:
-                    raw = json.loads(message)
-                    if raw['messageType'] == 'propertyStatus':
-                        message = raw['data']
-                        self.process_property_status_message(message)
+            while True:
+                try:
+                    async with websockets.connect(
+                        '{}?jwt={}'.format(
+                            self.web_socket_link,
+                            self.config.things_gateway_auth_key
+                        ),
+                    ) as websocket:
+                        logging.info('web socket established to %s', self.web_socket_link)
+                        async for message in websocket:
+                            raw = json.loads(message)
+                            if raw['messageType'] == 'propertyStatus':
+                                message = raw['data']
+                                self.process_property_status_message(message)
+                except Exception as e:
+                    # if the connection fails for any reason, reconnect
+                    logging.error('web socket failure (%s): %s', self.web_socket_link, e)
+                    logging.info('waiting 30S to retry web socket to: %s', self.web_socket_link)
+                    await asyncio.sleep(30)
 
         def process_property_status_message(self, message):
             for property_name, value in message.items():
