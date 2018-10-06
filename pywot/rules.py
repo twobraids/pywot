@@ -240,10 +240,15 @@ def make_thing(config, meta_definition):
                     logging.info('waiting 30S to retry web socket to: %s', self.web_socket_link)
                     await asyncio.sleep(30)
 
+        def update_hidden_property(self, a_property_name, new_value):
+            hidden_property_name = self.hidden_property_names[a_property_name]
+            logging.debug('%s setting %s to %s', self.name, hidden_property_name, new_value)
+            setattr(self, hidden_property_name, new_value)
+
         def process_property_status_message(self, message):
-            for property_name, value in message.items():
-                logging.info('%s: setting %s to %s', self.name, property_name, value)
-                setattr(self, property_name, value)
+            for a_property_name, new_value in message.items():
+                self.update_hidden_property(a_property_name, new_value)
+                self._apply_rules(a_property_name, new_value)
 
         def _apply_rules(self, a_property_name, a_value):
             for a_rule in self.participating_rules:
@@ -260,9 +265,12 @@ def make_thing(config, meta_definition):
             setattr(self, hidden_instance_name, a_value)
             self._apply_rules(a_property_name, a_value)
 
+    DerivedThing.hidden_property_names = {}
     for a_property_name in meta_definition['properties'].keys():
         a_python_property_name = as_python_identifier(a_property_name)
         hidden_instance_name = '__{}'.format(a_python_property_name)
+        DerivedThing.hidden_property_names[a_property_name] = hidden_instance_name
+        DerivedThing.hidden_property_names[a_python_property_name] = hidden_instance_name
         setattr(
             DerivedThing,
             a_python_property_name,
