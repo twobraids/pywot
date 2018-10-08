@@ -12,10 +12,12 @@ class RuleTrigger():
     def __init__(self, name):
         self.name = name
         self.participating_rules = []
+        self.canceled = False
 
     def _apply_rules(self, a_property_name=None, a_value=None):
-        for a_rule in self.participating_rules:
-            a_rule.action(self, a_property_name, a_value)
+        if self.canceled is False:
+            for a_rule in self.participating_rules:
+                a_rule.action(self, a_property_name, a_value)
 
 
 class TimeBasedTrigger(RuleTrigger):
@@ -70,14 +72,74 @@ class DurationTimer(TimeBasedTrigger):
     def __init__(
         self,
         name,
-        period_str
-        # duration should be a integer in string form with an optional
-        #    H, h, M, m, S, s, D, d  as a suffix to indicate units - default S
+        on_period_in_seconds_str,
+        off_period_in_seconds_str="0",
+        # period_on_str and  period_off_str should be a integer in string form
+        # with an optional H, h, M, m, S, s, D, d  as a suffix to indicate units
+        # default is S
+        max_repeats=1
     ):
         super(DurationTimer, self).__init__(name)
-        self.period = self.duration_str_to_seconds(period_str)
+        self.on_period_in_seconds = self.duration_str_to_seconds(on_period_in_seconds_str)
+        self.off_period_in_seconds = self.duration_str_to_seconds(off_period_in_seconds_str)
+        self.max_repeats = max_repeats
+        self.output_state = False
 
+    @property
+    def is_not_running(self):
+        try:
+            return self.timer_task.done()
+        except AttributeError:
+            return True
 
+    @property
+    def is_running(self):
+        try:
+            return not self.timer_task.done()
+        except AttributeError:
+            return False
+
+    def set_state_and_apply_rules(self, output_state):
+        try:
+            self.output_state = output_state
+            logging.info(
+                '%s output_state, %s',
+                self.name,
+                output_state
+            )
+            self._apply_rules('output_state', output_state)
+        except Exception as e:
+            logging.error(e)
+            raise
+
+    async def _start_timer(self):
+        repeat_counter = 1
+        try:
+            while True:
+                self.set_state_and_apply_rules(True)
+                logging.info('%s sleeping for %ss', self.name, self.on_period_in_seconds)
+                await asyncio.sleep(self.on_period_in_seconds)
+                self.set_state_and_apply_rules(False)
+                if self.max_repeats <= repeat_counter:
+                    break
+                repeat_counter += 1
+                logging.info('%s sleeping for %ss', self.name, self.off_period_in_seconds)
+                await asyncio.sleep(self.off_period_in_seconds)
+
+            self._apply_rules('timer_status', False)
+
+        finally:
+            logging.info('%s timer done', self.name)
+
+    def start_timer(self):
+        logging.info('the timer has started')
+        self.timer_task = asyncio.ensure_future(self._start_timer())
+
+    def cancel(self):
+        logging.info('%s cancel request', self.name)
+        if self.is_running:
+            logging.info('%s doing cancel', self.name)
+            self.timer_task.cancel()
 
 
 class AbsoluteTimeTrigger(TimeBasedTrigger):
@@ -106,70 +168,3 @@ class AbsoluteTimeTrigger(TimeBasedTrigger):
             await asyncio.sleep(time_until_trigger)
             self._apply_rules('activated', True)
             await asyncio.sleep(1)
-
-
-
-class AbsoluteTimeWithDurationTrigger(TimeBasedTrigger):
-    """This device will work as a rule trigger at a set time each day.  It optionally has a duration
-    that will trigger when the duration ends after the set time.  It has another option to repeat
-    the trigger and duration a set number of times after the initial absolute time trigger."""
-
-    def __init__(
-        self,
-        name,
-        # time_of_day_str should be in the 24Hr form "HH:MM:SS"
-        time_of_day_str,
-        # duration & repeat should be a integer in string form with an optional
-        #    H, h, M, m, S, s, D, d  as a suffix to indicate units - default S
-        duration_str="60",
-        repeat_every_str="0",
-        max_repeats=0
-    ):
-        super(AbsoluteTimeWithDurationTrigger, self).__init__(name)
-        # when 'activated' is True, the absolute time trigger has been activated and the
-        # asynchronous monitor_state method is running
-        self.activated = False
-        # when 'triggered' is True, time is within the duration specified within 'duration'
-        self.triggered = False
-
-        self.trigger_time = datetime.strptime(time_of_day_str, '%H:%M:%S').time()
-        self.duration = self.duration_str_to_seconds(duration_str)
-        self.repeat_every = self.duration_str_to_seconds(repeat_every_str)
-        self.max_repeats = max_repeats
-
-    async def trigger_dection_loop(self):
-        logging.debug('Starting timer %s', self.trigger_time)
-        logging.debug('there are %s participating rules', len(self.participating_rules))
-        time_until_trigger = self.time_difference_in_seconds(
-            self.trigger_time,
-            datetime.now().time()
-        )
-        repeat_counter = 0
-        while True:
-            logging.debug('timer triggers in %sS', time_until_trigger)
-            await asyncio.sleep(time_until_trigger)
-            self.triggered = True
-            if self.repeat_every == 0:
-                time_until_trigger = self.time_difference_in_seconds(
-                    self.trigger_time,
-                    datetime.now().time()
-                )
-            else:
-                time_until_trigger = self.repeat_every - self.duration
-                if self.max_repeats != 0:
-                    repeat_counter += 1
-                    if repeat_counter >= self.max_repeats:
-                        time_until_trigger = self.time_difference_in_seconds(
-                            self.trigger_time,
-                            datetime.now().time()
-                        )
-                        self.triggered = False
-                        repeat_counter = 0
-            self.activated = True
-            self._apply_rules('activated', True)
-            logging.debug('duration is %sS', self.duration)
-            await asyncio.sleep(self.duration)
-            self.activated = False
-            self._apply_rules('activated', False)
-
-

@@ -85,9 +85,14 @@ class RuleSystem(RequiredConfig):
     async def go(self):
         logging.debug('go')
         for a_trigger in self.set_of_participating_things:
-            asyncio.ensure_future(
-                a_trigger.trigger_dection_loop()
-            )
+            try:
+                asyncio.ensure_future(
+                    a_trigger.trigger_dection_loop()
+                )
+            except AttributeError:
+                # is not required to have a trigger_dection_loop
+                # this error can be ignored
+                pass
 
 
 def as_python_identifier(a_name):
@@ -214,7 +219,7 @@ def make_thing(config, meta_definition):
                                 return await response.text()
                 except aiohttp.client_exceptions.ClientConnectorError as e:
                     logging.error(
-                        'change_property: problem contacting http:/gateway.local: {}'.format(e)
+                        'change_property: problem contacting http://gateway.local: %s', e
                     )
                     logging.info('change_property: retrying after 20 second pause')
                     await asyncio.sleep(20.0)

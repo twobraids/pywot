@@ -10,18 +10,18 @@ from pywot.rule_triggers import (
 )
 
 
-class AbsoluteTimeRule(Rule):
+class MorningWakeRule(Rule):
 
     def register_triggers(self):
-        noon_trigger = AbsoluteTimeTrigger("noon_trigger", "12:00:00")
-        return (noon_trigger,)
+        morning_wake_trigger = AbsoluteTimeTrigger("morning_wake_trigger", "06:30:00")
+        return (morning_wake_trigger,)
 
     def action(self, *args):
-        self.Philips_HUE_02.on = True
+        self.Bedside_Ikea_Light.on = True
 
 
 def main(config, rule_system):
-    my_rule = AbsoluteTimeRule(rule_system, 'turn on at noon every day')
+    my_rule = MorningWakeRule(rule_system, 'turn on bedside light at wake time')
     rule_system.add_rule(my_rule)
 
 

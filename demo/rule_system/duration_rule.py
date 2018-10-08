@@ -1,40 +1,32 @@
 #!/usr/bin/env python3
 import logging
-import asyncio
-
-from datetime import (
-    datetime,
-    time
-)
 
 from pywot.rules import (
     Rule,
     run_main,
 )
 from pywot.rule_triggers import (
-    TimeBasedTrigger
+    DurationTimer
 )
 
 
 class DurationRule(Rule):
-    def initial_state(self):
-        self.duration = TimeBasedTrigger.duration_str_to_seconds("10s")
-
     def register_triggers(self):
-        return ('Philips HUE 01',)
+        return (self.Philips_HUE_01, DurationTimer("ten_second_timer", "10s"))
 
     def action(self, the_changed_thing, the_changed_property, the_new_value):
-        if the_changed_property == 'on' and the_new_value is True:
-            logging.debug(
-                'Duration Rule: turning off %s in %s seconds' % (
-                    the_changed_thing.name,
-                    self.duration
-                )
-            )
-            async def turn_off():
-                await asyncio.sleep(self.duration)
-                self.Philips_HUE_01.on = False
-            asyncio.ensure_future(turn_off())
+        if the_changed_thing is self.Philips_HUE_01:
+            state = (self.ten_second_timer.is_running, the_changed_property, the_new_value)
+            if state == (False, 'on', True):
+                # start the timer when the light turns on
+                self.ten_second_timer.start_timer()
+            elif state == (True, 'on', False):
+                # cancel the timer if the light gets turned off
+                self.ten_second_timer.cancel()
+
+        elif the_changed_thing is self.ten_second_timer:
+            self.Philips_HUE_01.on = the_new_value
+
 
 def main(config, rule_system):
     my_rule = DurationRule(
