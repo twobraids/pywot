@@ -262,6 +262,7 @@ def make_thing(config, meta_definition):
             asyncio.ensure_future(
                 self.async_change_property(a_property_name, a_value)
             )
+            logging.info('%s setting %s to %s', self.name, a_property_name, a_value)
             setattr(self, hidden_instance_name, a_value)
             self._apply_rules(a_property_name, a_value)
 

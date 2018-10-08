@@ -13,15 +13,15 @@ from pywot.rule_triggers import (
 class AbsoluteTimeRule(Rule):
 
     def register_triggers(self):
-        my_timer = AbsoluteTimeTrigger("my_timer", "12:00:00")
-        return (my_timer,)
+        noon_trigger = AbsoluteTimeTrigger("noon_trigger", "12:00:00")
+        return (noon_trigger,)
 
     def action(self, *args):
         self.Philips_HUE_02.on = True
 
 
 def main(config, rule_system):
-    my_rule = AbsoluteTimeRule(rule_system, 'turn on at 12:00 every day')
+    my_rule = AbsoluteTimeRule(rule_system, 'turn on at noon every day')
     rule_system.add_rule(my_rule)
 
 
