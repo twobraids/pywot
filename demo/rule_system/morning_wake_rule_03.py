@@ -40,7 +40,7 @@ class MorningWakeRule(Rule):
             if self.today_is_a_weekend_day:
                 asyncio.ensure_future(self._off_to_full())
 
-    async def _off_to_full(self, ):
+    async def _off_to_full(self):
         for i in range(20):
             new_level = (i + 1) * 5
             self.Bedside_Ikea_Light.on = True

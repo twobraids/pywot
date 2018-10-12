@@ -60,7 +60,7 @@ class HeartBeat(TimeBasedTrigger):
         super(HeartBeat, self).__init__(name)
         self.period = self.duration_str_to_seconds(period_str)
 
-    async def trigger_dection_loop(self):
+    async def trigger_detection_loop(self):
         logging.debug('Starting heartbeat timer %s', self.period)
         while True:
             await asyncio.sleep(self.period)
@@ -152,19 +152,14 @@ class AbsoluteTimeTrigger(TimeBasedTrigger):
         super(AbsoluteTimeTrigger, self).__init__(name)
         self.trigger_time = datetime.strptime(time_of_day_str, '%H:%M:%S').time()
 
-    async def trigger_dection_loop(self):
+    async def trigger_detection_loop(self):
         logging.debug('Starting timer %s', self.trigger_time)
-        logging.debug('there are %s participating rules', len(self.participating_rules))
-        time_until_trigger = self.time_difference_in_seconds(
-            self.trigger_time,
-            datetime.now().time()
-        )
         while True:
-            time_until_trigger = self.time_difference_in_seconds(
+            time_until_trigger_in_seconds = self.time_difference_in_seconds(
                 self.trigger_time,
                 datetime.now().time()
             )
-            logging.debug('timer triggers in %sS', time_until_trigger)
-            await asyncio.sleep(time_until_trigger)
+            logging.debug('timer triggers in %sS', time_until_trigger_in_seconds)
+            await asyncio.sleep(time_until_trigger_in_seconds)
             self._apply_rules('activated', True)
             await asyncio.sleep(1)

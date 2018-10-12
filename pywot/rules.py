@@ -87,10 +87,10 @@ class RuleSystem(RequiredConfig):
         for a_trigger in self.set_of_participating_things:
             try:
                 asyncio.ensure_future(
-                    a_trigger.trigger_dection_loop()
+                    a_trigger.trigger_detection_loop()
                 )
             except AttributeError:
-                # is not required to have a trigger_dection_loop
+                # is not required to have a trigger_detection_loop
                 # this error can be ignored
                 pass
 
@@ -224,7 +224,7 @@ def make_thing(config, meta_definition):
                     logging.info('change_property: retrying after 20 second pause')
                     await asyncio.sleep(20.0)
 
-        async def trigger_dection_loop(self):
+        async def trigger_detection_loop(self):
             while True:
                 try:
                     async with websockets.connect(
