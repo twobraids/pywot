@@ -63,9 +63,9 @@ class HeartBeat(TimeBasedTrigger):
     async def trigger_detection_loop(self):
         logging.debug('Starting heartbeat timer %s', self.period)
         while True:
-            await asyncio.sleep(self.period)
             logging.info('%s beats', self.name)
             self._apply_rules()
+            await asyncio.sleep(self.period)
 
 
 class DurationTimer(TimeBasedTrigger):
