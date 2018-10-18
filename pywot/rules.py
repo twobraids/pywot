@@ -36,9 +36,9 @@ class RuleSystem(RequiredConfig):
         default=10
     )
     required_config.add_option(
-        'all_things_url',
+        'http_things_gateway_host',
         doc='a URL for fetching all things data',
-        default="http://gateway.local/things",
+        default="http://gateway.local",
     )
 
     def __init__(self, config):
@@ -63,7 +63,7 @@ class RuleSystem(RequiredConfig):
         async with aiohttp.ClientSession() as session:
             async with async_timeout.timeout(self.config.seconds_for_timeout):
                 async with session.get(
-                    self.config.all_things_url,
+                    '{}/things'.format(self.config.http_things_gateway_host),
                     headers={
                         'Accept': 'application/json',
                         'Authorization': 'Bearer {}'.format(self.config.things_gateway_auth_key),
@@ -200,7 +200,8 @@ def make_thing(config, meta_definition):
                     async with aiohttp.ClientSession() as session:
                         async with async_timeout.timeout(self.config.seconds_for_timeout):
                             async with session.put(
-                                "http://gateway.local/things/{}/properties/{}/".format(
+                                "{}/things/{}/properties/{}/".format(
+                                    self.config.http_things_gateway_host,
                                     self.id,
                                     a_property_name
                                 ),
