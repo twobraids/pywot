@@ -34,7 +34,7 @@ setup(
     keywords='web of things, internet of things',
 
     packages=find_packages(exclude=['pywot']),
-    install_requires=['configman', 'webthing>=0.6', 'astral', ],
+    install_requires=['configman', 'webthing>=0.6', 'astral', 'aiohttp', 'websockets'],
 
     project_urls={
         'Source': 'https://github.com/twobraids/pywot/',

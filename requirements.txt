@@ -1,3 +1,5 @@
 configman
 webthing>=0.6
 astral
+aiohttp
+websockets
