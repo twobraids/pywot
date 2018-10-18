@@ -29,13 +29,12 @@ setup(
         'Intended Audience :: Developers',
         'Topic :: Home Automation',
         'License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
     ],
     keywords='web of things, internet of things',
 
     packages=find_packages(exclude=['pywot']),
-    install_requires=['configman', 'webthing>=0.6'],
+    install_requires=['configman', 'webthing>=0.6', 'astral', ],
 
     project_urls={
         'Source': 'https://github.com/twobraids/pywot/',
