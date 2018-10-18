@@ -12,7 +12,10 @@ from pywot.rule_triggers import (
 
 class DurationRule(Rule):
     def register_triggers(self):
-        return (self.Philips_HUE_01, DurationTimer("ten_second_timer", "10s"))
+        return (
+            self.Philips_HUE_01,
+            DurationTimer(self.config, "ten_second_timer", "10s")
+        )
 
     def action(self, the_changed_thing, the_changed_property, the_new_value):
         if the_changed_thing is self.Philips_HUE_01:
@@ -30,6 +33,7 @@ class DurationRule(Rule):
 
 def main(config, rule_system):
     my_rule = DurationRule(
+        config,
         rule_system,
         'if bulb 01 is turned on then turn it off ten seconds later'
     )

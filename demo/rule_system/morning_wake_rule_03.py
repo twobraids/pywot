@@ -25,10 +25,10 @@ class MorningWakeRule(Rule):
 
     def register_triggers(self):
         self.weekday_morning_wake_trigger = AbsoluteTimeTrigger(
-            "weekday_morning_wake_trigger", "06:10:00"
+            self.config, "weekday_morning_wake_trigger", "06:10:00"
         )
         self.weekend_morning_wake_trigger = AbsoluteTimeTrigger(
-            "weekend_morning_wake_trigger", "07:10:00"
+            self.config, "weekend_morning_wake_trigger", "07:10:00"
         )
         return (self.weekday_morning_wake_trigger, self.weekend_morning_wake_trigger)
 
@@ -41,15 +41,17 @@ class MorningWakeRule(Rule):
                 asyncio.ensure_future(self._off_to_full())
 
     async def _off_to_full(self):
+        logging.info('starting dimmer')
         for i in range(20):
             new_level = (i + 1) * 5
+            logging.info('next %s', new_level)
             self.Bedside_Ikea_Light.on = True
             self.Bedside_Ikea_Light.level = new_level
             await asyncio.sleep(60)
 
 
 def main(config, rule_system):
-    my_rule = MorningWakeRule(rule_system, 'turn on bedside light at wake time')
+    my_rule = MorningWakeRule(config, rule_system, 'turn on bedside light at wake time')
     rule_system.add_rule(my_rule)
 
 

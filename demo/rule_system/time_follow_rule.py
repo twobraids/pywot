@@ -20,7 +20,7 @@ from follow_everything_rule import FollowRule
 class TimedRule(Rule):
 
     def register_triggers(self):
-        my_timer = AbsoluteTimeWithDurationTrigger( "my_timer", "12:10:00", '1s', '2s', 10)
+        my_timer = AbsoluteTimeWithDurationTrigger(self.config, "my_timer", "13:40:00", '1s', '2s', 10)
         return (my_timer,)
 
     def action(self, *args):
@@ -30,9 +30,9 @@ class TimedRule(Rule):
             self.Philips_HUE_01.on = False
 
 def main(config, rule_system):
-    my_rule = TimedRule(rule_system, 'flash bulb 01 10 times at noon everyday')
+    my_rule = TimedRule(config, rule_system, 'flash bulb 01 10 times at noon everyday')
     rule_system.add_rule(my_rule)
-    my_rule = ExampleIfRule(rule_system, '01 02 03 & 04 follow each other')
+    my_rule = ExampleIfRule(config, rule_system, '01 02 03 & 04 follow each other')
     rule_system.add_rule(my_rule)
 
 

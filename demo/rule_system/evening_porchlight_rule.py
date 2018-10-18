@@ -19,6 +19,7 @@ class EveningPorchLightRule(Rule):
 
     def register_triggers(self):
         sun_trigger = SunTrigger(
+            self.config,
             "sun_trigger",
             "sunset",
             (44.562951, -123.3535762),
@@ -33,6 +34,7 @@ class EveningPorchLightRule(Rule):
 
 def main(config, rule_system):
     my_rule = EveningPorchLightRule(
+        config,
         rule_system,
         'turn on front porch light ten minutes after sunset'
     )

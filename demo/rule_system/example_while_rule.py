@@ -17,7 +17,7 @@ class ExampleWhileRule(Rule):
 
 
 def main(config, rule_system):
-    my_rule = ExampleWhileRule(rule_system, 'while 01 is on, turn on the others')
+    my_rule = ExampleWhileRule(config, rule_system, 'while 01 is on, turn on the others')
     rule_system.add_rule(my_rule)
 
 

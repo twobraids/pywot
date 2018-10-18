@@ -17,7 +17,7 @@ class ExampleIfRule(Rule):
 
 
 def main(config, rule_system):
-    my_rule = ExampleIfRule(rule_system, 'if 01 turns on, turn on the others')
+    my_rule = ExampleIfRule(config, rule_system, 'if 01 turns on, turn on the others')
     rule_system.add_rule(my_rule)
 
 

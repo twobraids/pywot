@@ -39,7 +39,7 @@ class RainbowRule(Rule):
             a_bulb.color = initial_color
 
     def register_triggers(self):
-        self.heartbeat = HeartBeat('the heart', "2s")
+        self.heartbeat = HeartBeat(self.config, 'the heart', "2s")
         return (self.heartbeat, )
 
     def action(self, *args):
@@ -48,7 +48,7 @@ class RainbowRule(Rule):
             a_bulb.color = new_color
 
 def main(config, rule_system):
-    my_rule = RainbowRule(rule_system, 'Rainbow Rule')
+    my_rule = RainbowRule(config, rule_system, 'Rainbow Rule')
     rule_system.add_rule(my_rule)
 
 

@@ -36,10 +36,10 @@ number_of_steps = len(color_transition_values)
 
 class DeadlineRule(Rule):
 
-    def __init__(self, rule_system, name, deadline_datetime):
+    def __init__(self, config, rule_system, name, deadline_datetime):
         self.deadline = deadline_datetime
         self.fade_task = None
-        super(DeadlineRule, self).__init__(rule_system, name)
+        super(DeadlineRule, self).__init__(config, rule_system, name)
 
     def initial_state(self):
         self.Philips_HUE_01.on = True

@@ -20,7 +20,7 @@ class BondedBulbsRule(Rule):
 
 
 def main(config, rule_system):
-    my_rule = BondedBulbsRule(rule_system, 'bonded things')
+    my_rule = BondedBulbsRule(config, rule_system, 'bonded things')
     rule_system.add_rule(my_rule)
 
 

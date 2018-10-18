@@ -9,7 +9,8 @@ from datetime import (
 
 
 class RuleTrigger():
-    def __init__(self, name):
+    def __init__(self, config, name):
+        self.config = config
         self.name = name
         self.participating_rules = []
         self.canceled = False
@@ -27,6 +28,11 @@ class TimeBasedTrigger(RuleTrigger):
         'H': 60 * 60,
         'D': 60 * 60 * 24
     }
+
+    def __init__(self, config, name):
+        super(TimeBasedTrigger, self).__init__(config, name)
+        self.system_timezone = config.system_timezone
+        self.local_timezone = config.local_timezone
 
     @staticmethod
     def time_difference_in_seconds(start_time, end_time):
@@ -48,16 +54,23 @@ class TimeBasedTrigger(RuleTrigger):
             duration_str = duration_str[:-1]
         return int(duration_str) * TimeBasedTrigger.scale[units]
 
+    def local_now(self):
+        if self.local_timezone is self.system_timezone:
+            return self.local_timezone.localize(datetime.now())
+        system_now = self.system_timezone.localize(datetime.now())
+        return system_now.astimezone(self.local_timezone)
+
 
 class HeartBeat(TimeBasedTrigger):
     def __init__(
         self,
+        config,
         name,
         period_str
         # duration should be a integer in string form with an optional
         #    H, h, M, m, S, s, D, d  as a suffix to indicate units - default S
     ):
-        super(HeartBeat, self).__init__(name)
+        super(HeartBeat, self).__init__(config, name)
         self.period = self.duration_str_to_seconds(period_str)
 
     async def trigger_detection_loop(self):
@@ -71,6 +84,7 @@ class HeartBeat(TimeBasedTrigger):
 class DurationTimer(TimeBasedTrigger):
     def __init__(
         self,
+        config,
         name,
         on_period_in_seconds_str,
         off_period_in_seconds_str="0",
@@ -79,7 +93,7 @@ class DurationTimer(TimeBasedTrigger):
         # default is S
         max_repeats=1
     ):
-        super(DurationTimer, self).__init__(name)
+        super(DurationTimer, self).__init__(config, name)
         self.on_period_in_seconds = self.duration_str_to_seconds(on_period_in_seconds_str)
         self.off_period_in_seconds = self.duration_str_to_seconds(off_period_in_seconds_str)
         self.max_repeats = max_repeats
@@ -145,11 +159,12 @@ class DurationTimer(TimeBasedTrigger):
 class AbsoluteTimeTrigger(TimeBasedTrigger):
     def __init__(
         self,
+        config,
         name,
         # time_of_day_str should be in the 24Hr form "HH:MM:SS"
         time_of_day_str,
     ):
-        super(AbsoluteTimeTrigger, self).__init__(name)
+        super(AbsoluteTimeTrigger, self).__init__(config, name)
         self.trigger_time = datetime.strptime(time_of_day_str, '%H:%M:%S').time()
 
     async def trigger_detection_loop(self):
@@ -157,7 +172,7 @@ class AbsoluteTimeTrigger(TimeBasedTrigger):
         while True:
             time_until_trigger_in_seconds = self.time_difference_in_seconds(
                 self.trigger_time,
-                datetime.now().time()
+                self.local_now().time()
             )
             logging.debug('timer triggers in %sS', time_until_trigger_in_seconds)
             await asyncio.sleep(time_until_trigger_in_seconds)
@@ -168,14 +183,15 @@ class AbsoluteTimeTrigger(TimeBasedTrigger):
 class SunTrigger(TimeBasedTrigger):
     def __init__(
         self,
+        config,
         name,
-        sun_event_name, # dawn, sunrise, noon, sunset, dusk
+        sun_event_name,  # dawn, sunrise, noon, sunset, dusk
         lat_long_tuple,
         timezone_name,  # like "US/Pacific" or "GMT"
         elevation_in_meters,
         time_offset_in_seconds=0
     ):
-        super(SunTrigger, self).__init__(name)
+        super(SunTrigger, self).__init__(config, name)
         self.sun_event_name = sun_event_name
         self.location = astral.Location((
             "location_name",
@@ -200,7 +216,7 @@ class SunTrigger(TimeBasedTrigger):
 
     async def trigger_detection_loop(self):
         while True:
-            now = self.location.tz.localize(datetime.now())
+            now = self.local_now().astimezone(self.location.tz)
             sun_schedule = self.get_sun_schedule(now)
             if sun_schedule[self.sun_event_name] + self.time_offset < now:
                 # this event is in the past, get tomorrow's event instead

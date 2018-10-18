@@ -25,10 +25,10 @@ class MorningWakeRule(Rule):
 
     def register_triggers(self):
         self.weekday_morning_wake_trigger = AbsoluteTimeTrigger(
-            "morning_wake_trigger", "06:30:00"
+            self.config, "weekday_morning_wake_trigger", "06:30:00"
         )
         self.weekend_morning_wake_trigger = AbsoluteTimeTrigger(
-            "morning_wake_trigger", "07:30:00"
+            self.config, "weekend_morning_wake_trigger", "07:30:00"
         )
         return (self.weekday_morning_wake_trigger, self.weekend_morning_wake_trigger)
 
@@ -42,7 +42,7 @@ class MorningWakeRule(Rule):
 
 
 def main(config, rule_system):
-    my_rule = MorningWakeRule(rule_system, 'turn on bedside light at wake time')
+    my_rule = MorningWakeRule(config, rule_system, 'turn on bedside light at wake time')
     rule_system.add_rule(my_rule)
 
 

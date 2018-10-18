@@ -14,8 +14,8 @@ from pywot.rule_triggers import (
 class AbsoluteAndDurationRule(Rule):
 
     def register_triggers(self):
-        self.noon_trigger = AbsoluteTimeTrigger("ab_timer", "12:00:00")
-        self.delay_timer = DurationTimer('delay_timer', "10m")
+        self.noon_trigger = AbsoluteTimeTrigger(self.config, "ab_timer", "13:22:00")
+        self.delay_timer = DurationTimer(self.config, 'delay_timer', "1m")
         return (self.noon_trigger, self.delay_timer)
 
     def action(self, the_changed_thing, the_changed_property, the_new_value):
@@ -30,6 +30,7 @@ class AbsoluteAndDurationRule(Rule):
 
 def main(config, rule_system):
     my_rule = AbsoluteAndDurationRule(
+        config,
         rule_system,
         'if it is noon, turn on bulb 01 for ten minutes'
     )

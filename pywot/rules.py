@@ -8,6 +8,7 @@ import string
 import re
 
 from functools import partial
+from pytz import timezone
 
 from configman.dotdict import DotDict
 from configman import (
@@ -39,6 +40,18 @@ class RuleSystem(RequiredConfig):
         'http_things_gateway_host',
         doc='a URL for fetching all things data',
         default="http://gateway.local",
+    )
+    required_config.add_option(
+        "system_timezone",
+        default='UTC',
+        doc="the name of the default timezone running on the system ('US/Pacific, UTC, ...')",
+        from_string_converter=timezone
+    )
+    required_config.add_option(
+        "local_timezone",
+        default='US/Pacific',
+        doc="the name of the timezone where the Things are ('US/Pacific, UTC, ...')",
+        from_string_converter=timezone
     )
 
     def __init__(self, config):
@@ -112,7 +125,8 @@ class Thing:
 
 
 class Rule:
-    def __init__(self, rule_system, name):
+    def __init__(self, config, rule_system, name):
+        self.config = config
         self.rule_system = rule_system
         self.name = name
         # these are the things that will trigger the rule when they
@@ -152,7 +166,6 @@ class Rule:
                     )
 
         self.initial_state()
-
 
     def initial_state(self):
         pass
