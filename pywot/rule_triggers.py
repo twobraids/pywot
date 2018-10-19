@@ -60,6 +60,10 @@ class TimeBasedTrigger(RuleTrigger):
         system_now = self.system_timezone.localize(datetime.now())
         return system_now.astimezone(self.local_timezone)
 
+    def now_in_timezone(self, target_timezone):
+        system_now = self.system_timezone.localize(datetime.now())
+        return system_now.astimezone(target_timezone)
+
 
 class HeartBeat(TimeBasedTrigger):
     def __init__(
@@ -187,7 +191,7 @@ class SunTrigger(TimeBasedTrigger):
         name,
         sun_event_name,  # dawn, sunrise, noon, sunset, dusk
         lat_long_tuple,
-        timezone_name,  # like "US/Pacific" or "GMT"
+        timezone_name,  # like "US/Pacific" or "UTC"
         elevation_in_meters,
         time_offset_in_seconds=0
     ):
@@ -216,7 +220,7 @@ class SunTrigger(TimeBasedTrigger):
 
     async def trigger_detection_loop(self):
         while True:
-            now = self.local_now().astimezone(self.location.tz)
+            now = self.now_in_timezone(self.location.tz)
             sun_schedule = self.get_sun_schedule(now)
             if sun_schedule[self.sun_event_name] + self.time_offset < now:
                 # this event is in the past, get tomorrow's event instead
@@ -226,7 +230,7 @@ class SunTrigger(TimeBasedTrigger):
                 sun_schedule[self.sun_event_name] + self.time_offset,
                 now
             )
-            logging.debug('timer triggers in %sS', time_until_trigger_in_seconds)
+            logging.info('SunTrigger triggers in %sS', time_until_trigger_in_seconds)
             await asyncio.sleep(time_until_trigger_in_seconds)
             self._apply_rules('activated', True)
             await asyncio.sleep(1)
