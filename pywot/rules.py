@@ -199,7 +199,11 @@ def make_thing(config, meta_definition):
             self.meta_definition = meta_definiton_as_dot_dict
             self.id = self.meta_definition.href.split('/')[-1]
             self.name = self.meta_definition.name
+            if self.name == 'Button1':
+                for key in meta_definiton_as_dot_dict.keys_breadth_first():
+                    logging.info('%s: %s', key, meta_definiton_as_dot_dict[key])
             self.participating_rules = []
+            self.command_queue = asyncio.Queue()
 
         @staticmethod
         def quote_strings(a_value):
@@ -238,6 +242,23 @@ def make_thing(config, meta_definition):
                     logging.info('change_property: retrying after 20 second pause')
                     await asyncio.sleep(20.0)
 
+        async def receive_websocket_messages(self, websocket):
+            async for message in websocket:
+                raw = json.loads(message)
+                logging.info('property %s', raw)
+                message = raw['data']
+                if raw['messageType'] == 'propertyStatus':
+                    self.process_property_status_message(message)
+                elif raw['messageType'] == 'event':
+                    self.process_event_message(message)
+
+        async def send_queued_messages(self, websocket):
+            while True:
+                command = await self.command_queue.get()
+                command_as_string = json.dumps(command)
+                logging.info('sending: %s', command_as_string)
+                await websocket.send(command_as_string)
+
         async def trigger_detection_loop(self):
             while True:
                 try:
@@ -248,16 +269,34 @@ def make_thing(config, meta_definition):
                         ),
                     ) as websocket:
                         logging.info('web socket established to %s', self.web_socket_link)
-                        async for message in websocket:
-                            raw = json.loads(message)
-                            if raw['messageType'] == 'propertyStatus':
-                                message = raw['data']
-                                self.process_property_status_message(message)
+                        await asyncio.gather(
+                            self.receive_websocket_messages(websocket),
+                            self.send_queued_messages(websocket)
+                        )
+
                 except Exception as e:
                     # if the connection fails for any reason, reconnect
                     logging.error('web socket failure (%s): %s', self.web_socket_link, e)
                     logging.info('waiting 30S to retry web socket to: %s', self.web_socket_link)
                     await asyncio.sleep(30)
+
+        def subscribe_to_event(self, event_name):
+            asyncio.ensure_future(self.async_subscribe_to_event(event_name))
+
+        async def async_subscribe_to_event(self, event_name):
+            try:
+                event_subscription = {
+                    "messageType": "addEventSubscription",
+                    "data": {
+                        event_name: {}
+                    }
+                }
+                string = json.dumps(event_subscription)
+                logging.info('queuing: %s', string)
+                await self.command_queue.put(event_subscription)
+
+            except Exception as e:
+                logging.error(e)
 
         def update_hidden_property(self, a_property_name, new_value):
             hidden_property_name = self.hidden_property_names[a_property_name]
@@ -269,7 +308,12 @@ def make_thing(config, meta_definition):
                 self.update_hidden_property(a_property_name, new_value)
                 self._apply_rules(a_property_name, new_value)
 
-        def _apply_rules(self, a_property_name, a_value):
+        def process_event_message(self, message):
+            logging.info('process_event_message: %s', message)
+            for event_name in message.keys():
+                self._apply_rules(event_name)
+
+        def _apply_rules(self, a_property_name, a_value=None):
             for a_rule in self.participating_rules:
                 a_rule.action(self, a_property_name, a_value)
 
