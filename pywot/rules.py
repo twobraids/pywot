@@ -212,35 +212,13 @@ def make_thing(config, meta_definition):
             return a_value
 
         async def async_change_property(self, a_property_name, a_value):
-            while True:
-                try:
-                    async with aiohttp.ClientSession() as session:
-                        async with async_timeout.timeout(self.config.seconds_for_timeout):
-                            async with session.put(
-                                "{}/things/{}/properties/{}/".format(
-                                    self.config.http_things_gateway_host,
-                                    self.id,
-                                    a_property_name
-                                ),
-                                headers={
-                                    'Accept': 'application/json',
-                                    'Authorization': 'Bearer {}'.format(
-                                        self.config.things_gateway_auth_key
-                                    ),
-                                    'Content-Type': 'application/json'
-                                },
-                                data='{{"{}": {}}}'.format(
-                                    a_property_name,
-                                    str(self.quote_strings(a_value)).lower()
-                                )
-                            ) as response:
-                                return await response.text()
-                except aiohttp.client_exceptions.ClientConnectorError as e:
-                    logging.error(
-                        'change_property: problem contacting http://gateway.local: %s', e
-                    )
-                    logging.info('change_property: retrying after 20 second pause')
-                    await asyncio.sleep(20.0)
+            message = {
+                "messageType": "setProperty",
+                "data": {
+                    a_property_name: a_value
+                }
+            }
+            await self.command_queue.put(message)
 
         async def receive_websocket_messages(self, websocket):
             async for message in websocket:
