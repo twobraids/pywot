@@ -53,8 +53,8 @@ class RahukaalamRule(Rule):
         return (rahukaalam_trigger,)
 
     async def blink(self, number_of_seconds):
-        blink_period = number_of_seconds / 3
-        for i in range(int(blink_period)):
+        number_of_blinks = number_of_seconds / 3
+        for i in range(int(number_of_blinks)):
             self.Philips_HUE_02.on = True
             await asyncio.sleep(2)
             self.Philips_HUE_02.on = False
