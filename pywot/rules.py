@@ -199,9 +199,6 @@ def make_thing(config, meta_definition):
             self.meta_definition = meta_definiton_as_dot_dict
             self.id = self.meta_definition.href.split('/')[-1]
             self.name = self.meta_definition.name
-            if self.name == 'Button1':
-                for key in meta_definiton_as_dot_dict.keys_breadth_first():
-                    logging.info('%s: %s', key, meta_definiton_as_dot_dict[key])
             self.participating_rules = []
             self.command_queue = asyncio.Queue()
 
@@ -223,7 +220,7 @@ def make_thing(config, meta_definition):
         async def receive_websocket_messages(self, websocket):
             async for message in websocket:
                 raw = json.loads(message)
-                logging.info('property %s', raw)
+                logging.debug('property %s', raw)
                 message = raw['data']
                 if raw['messageType'] == 'propertyStatus':
                     self.process_property_status_message(message)
@@ -234,7 +231,7 @@ def make_thing(config, meta_definition):
             while True:
                 command = await self.command_queue.get()
                 command_as_string = json.dumps(command)
-                logging.info('sending: %s', command_as_string)
+                logging.debug('sending: %s', command_as_string)
                 await websocket.send(command_as_string)
 
         async def trigger_detection_loop(self):
@@ -246,7 +243,7 @@ def make_thing(config, meta_definition):
                             self.config.things_gateway_auth_key
                         ),
                     ) as websocket:
-                        logging.info('web socket established to %s', self.web_socket_link)
+                        logging.debug('web socket established to %s', self.web_socket_link)
                         await asyncio.gather(
                             self.receive_websocket_messages(websocket),
                             self.send_queued_messages(websocket)
@@ -270,7 +267,7 @@ def make_thing(config, meta_definition):
                     }
                 }
                 string = json.dumps(event_subscription)
-                logging.info('queuing: %s', string)
+                logging.debug('queuing: %s', string)
                 await self.command_queue.put(event_subscription)
 
             except Exception as e:
@@ -287,7 +284,7 @@ def make_thing(config, meta_definition):
                 self._apply_rules(a_property_name, new_value)
 
         def process_event_message(self, message):
-            logging.info('process_event_message: %s', message)
+            logging.debug('process_event_message: %s', message)
             for event_name in message.keys():
                 self._apply_rules(event_name)
 
@@ -303,7 +300,7 @@ def make_thing(config, meta_definition):
             asyncio.ensure_future(
                 self.async_change_property(a_property_name, a_value)
             )
-            logging.info('%s setting %s to %s', self.name, a_property_name, a_value)
+            logging.debug('%s setting %s to %s', self.name, a_property_name, a_value)
             setattr(self, hidden_instance_name, a_value)
             self._apply_rules(a_property_name, a_value)
 

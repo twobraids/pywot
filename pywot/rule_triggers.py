@@ -42,7 +42,7 @@ class TimeBasedTrigger(RuleTrigger):
         if e_time > s_time:
             e_time = e_time + timedelta(1)
         difference = s_time - e_time
-        return difference.seconds
+        return difference.total_seconds()
 
     @staticmethod
     def duration_str_to_seconds(duration_str):
@@ -184,19 +184,23 @@ class AbsoluteTimeTrigger(TimeBasedTrigger):
             await asyncio.sleep(1)
 
 
-class SunTrigger(TimeBasedTrigger):
+class DailySolarEventsTrigger(TimeBasedTrigger):
     def __init__(
         self,
         config,
         name,
-        sun_event_name,  # dawn, sunrise, noon, sunset, dusk
+        # list of any daily events (see self.all_possible_event_names)
+        event_name_list,
         lat_long_tuple,
         timezone_name,  # like "US/Pacific" or "UTC"
         elevation_in_meters,
-        time_offset_in_seconds=0
+        # modify the event time - should be a signed integer in string form with an
+        # optional H, h, M, m, S, s, D, d  as a suffix to indicate units
+        # default is S
+        offset='0s'
     ):
-        super(SunTrigger, self).__init__(config, name)
-        self.sun_event_name = sun_event_name
+        super(DailySolarEventsTrigger, self).__init__(config, name)
+        self.event_name_list = event_name_list
         self.location = astral.Location((
             "location_name",
             "location_region",
@@ -205,32 +209,92 @@ class SunTrigger(TimeBasedTrigger):
             timezone_name,
             elevation_in_meters
         ))
-        self.time_offset = timedelta(0, time_offset_in_seconds)
+        self.offset = timedelta(0, self.duration_str_to_seconds(offset))
         self.one_day = timedelta(1)
+        self.all_possible_event_names = (
+            "blue_hour_start",
+            "blue_hour_end",
+            "dawn",
+            "daylight_start",
+            "daylight_end",
+            "dusk",
+            "golden_hour_start",
+            "golden_hour_end",
+            "night_start",
+            "night_end",
+            "rahukaalam_start",
+            "rahukaalam_end",
+            "solar_midnight",
+            "solar_noon",
+            "sunrise",
+            "sunset",
+            "twilight_start",
+            "twilight_end",
+        )
 
-    def get_sun_schedule(self, now):
-        try:
-            return self.location.sun(now)
-        except Exception:
-            # astral will raise exceptions if any of the sun events
-            # cannot be calculated - for example there is no sunrise
-            # in midwinter or sunset in mid summer in some locations.
-            # Guess by returning now + one day
-            return {self.sun_event_name: now + self.one_day}
+    def get_schedule(self):
+        event_list = []
+        for an_event_name in self.event_name_list:
+            if an_event_name not in self.all_possible_event_names:
+                error_message = "{}  is not a valid event name".format(an_event_name)
+                logging.error(error_message)
+                continue
+
+            base_event_name = an_event_name.replace('_end', '').replace('_start', '')
+            try:
+                event = getattr(self.location, base_event_name)()
+            except Exception as e:
+                # astral will raise exceptions if any of the sun events
+                # cannot be calculated - for example there is no sunrise
+                # or sunset in mid summer of mid winter.
+                logging.error(e)
+                continue
+
+            if isinstance(event, datetime):
+                event_list.append((event + self.offset, an_event_name))
+                continue
+
+            if isinstance(event, tuple):
+                # the tuples are all (start_datetime, end_datetime) except for
+                # the 'night' event where they are returned as (end_datetime, start_datetime)
+                index = 0 if an_event_name.endswith('_start') else 1
+                if base_event_name == 'night':
+                    event = (event[1], event[0])
+                event_list.append((event[index] + self.offset, an_event_name))
+                continue
+        return event_list
+
+    async def trigger_event(self, now, time_delta, event_name):
+        logging.info('%s in %s seconds (%s)', event_name, time_delta.total_seconds(), now + time_delta)
+        await asyncio.sleep(time_delta.total_seconds())
+        self._apply_rules(event_name)
 
     async def trigger_detection_loop(self):
         while True:
-            now = self.now_in_timezone(self.location.tz)
-            sun_schedule = self.get_sun_schedule(now)
-            if sun_schedule[self.sun_event_name] + self.time_offset < now:
-                # this event is in the past, get tomorrow's event instead
-                sun_schedule = self.get_sun_schedule(now + self.one_day)
+            event_schedule = self.get_schedule()
+            for event_datetime, event_name in event_schedule:
+                logging.debug('new schedule %s %s', event_name, event_datetime)
+                now = self.now_in_timezone(self.location.tz)
+                if event_datetime < now:
+                    continue
+                time_delta = event_datetime - now
+                asyncio.ensure_future(self.trigger_event(now, time_delta, event_name))
 
-            time_until_trigger_in_seconds = self.time_difference_in_seconds(
-                sun_schedule[self.sun_event_name] + self.time_offset,
-                now
+            now = self.now_in_timezone(self.location.tz)
+            next_day = (now + self.one_day).date()
+
+            next_schedule_time = self.local_timezone.localize(datetime(  # next day at 1am
+                next_day.year,
+                next_day.month,
+                next_day.day,
+                1
+            ))
+            time_interval_until_next_schedule = next_schedule_time - now
+            logging.info(
+                "%s: next day's schedule pulled in %s seconds (%s))",
+                self.name,
+                time_interval_until_next_schedule.total_seconds(),
+                next_schedule_time
             )
-            logging.info('SunTrigger triggers in %sS', time_until_trigger_in_seconds)
-            await asyncio.sleep(time_until_trigger_in_seconds)
-            self._apply_rules('activated', True)
-            await asyncio.sleep(1)
+
+            await asyncio.sleep(time_interval_until_next_schedule.total_seconds())
