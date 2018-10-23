@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import logging
+import asyncio
 
 from pywot.rules import (
     Rule,
@@ -30,8 +31,8 @@ class EveningPorchLightRule(Rule):
         )
         return (self.sunset_trigger, self.ten_pm_trigger)
 
-    def action(self, the_changed_thing, *args):
-        if the_changed_thing is self.sunset_trigger:
+    def action(self, the_triggering_thing, *args):
+        if the_triggering_thing is self.sunset_trigger:
             self.Philips_HUE_01.on = True
         else:
             self.Philips_HUE_01.on = False
@@ -40,21 +41,34 @@ class EveningPorchLightRule(Rule):
 class RahukaalamRule(Rule):
 
     def register_triggers(self):
-        events_trigger = DailySolarEventsTrigger(
+        rahukaalam_trigger = DailySolarEventsTrigger(
             self.config,
             "rahukaalam_trigger",
             ("rahukaalam_start", "rahukaalam_end", ),
             (44.562951, -123.3535762),
             "US/Pacific",
-            70.0
+            70.0,
+            "-2250s"
         )
-        return (events_trigger,)
+        return (rahukaalam_trigger,)
 
-    def action(self, the_changed_thing, the_changed_property, new_value):
-        if new_value is True:
+    async def blink(self, number_of_seconds):
+        blink_period = number_of_seconds / 3
+        for i in range(int(blink_period)):
+            self.Philips_HUE_02.on = True
+            await asyncio.sleep(2)
+            self.Philips_HUE_02.on = False
+            await asyncio.sleep(1)
+        self.Philips_HUE_02.on = True
+
+    def action(self, the_triggering_thing, the_trigger, *args):
+        if the_trigger == "rahukaalam_start":
+            logging.info('%s starts', self.name)
             self.Philips_HUE_02.on = True
             self.Philips_HUE_02.color = "#FF9900"
+            asyncio.ensure_future(self.blink(30))
         else:
+            logging.info('%s ends', self.name)
             self.Philips_HUE_02.on = False
 
 
@@ -69,7 +83,7 @@ def main(config, rule_system):
     rahukaalam_warning_rule = RahukaalamRule(
         config,
         rule_system,
-        'warning light during Rahukaalam'
+        'Rahukaalam warning light'
     )
     rule_system.add_rule(rahukaalam_warning_rule)
 
