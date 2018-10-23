@@ -47,8 +47,7 @@ class RahukaalamRule(Rule):
             ("rahukaalam_start", "rahukaalam_end", ),
             (44.562951, -123.3535762),
             "US/Pacific",
-            70.0,
-            "-2250s"
+            70.0
         )
         return (rahukaalam_trigger,)
 
