@@ -3,3 +3,4 @@ webthing>=0.6
 astral
 aiohttp
 websockets
+bs4

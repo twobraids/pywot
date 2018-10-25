@@ -5,6 +5,10 @@ from pywot.rules import Rule
 
 
 class ExampleWhileRule(Rule):
+    """This rule triggers on any change in state of the Philips_HUE_01 bulb.
+    If the change was to the "on" state of the bulb, then the other bulbs are
+    changed in the same way.
+    """
 
     def register_triggers(self):
         return (self.Philips_HUE_01,)

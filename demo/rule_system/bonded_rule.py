@@ -5,6 +5,11 @@ from pywot.rules import Rule
 
 
 class BondedBulbsRule(Rule):
+    """This rule triggers on any change on any of the four Philips HUE bulbs.
+    The action duplicates the change to all the other bulbs.  This makes all
+    have the same on/off state and color.
+    """
+
 
     def register_triggers(self):
         return (
