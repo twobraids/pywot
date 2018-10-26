@@ -85,6 +85,71 @@ class HeartBeat(TimeBasedTrigger):
             await asyncio.sleep(self.period)
 
 
+class DelayTimer(TimeBasedTrigger):
+
+    def __init__(
+        self,
+        config,
+        name,
+        timer_period_str,
+        # timer_period_str and  period_off_str should be a integer in string form
+        # with an optional H, h, M, m, S, s, D, d  as a suffix to indicate units
+        # default is S
+    ):
+        super(DelayTimer, self).__init__(config, name)
+        self.original_timer_period_str = timer_period_str
+        self.timer_period_in_seconds = self.duration_str_to_seconds(timer_period_str)
+        self.delay_timers = []
+        self.suppress_cancel = False
+
+    @property
+    def is_not_running(self):
+        try:
+            return self.timer_task.done()
+        except AttributeError:
+            return True
+
+    @property
+    def is_running(self):
+        try:
+            return not self.timer_task.done()
+        except AttributeError:
+            return False
+
+    async def _start_timer(self):
+        try:
+            while len(self.delay_timers) > 0:
+                await asyncio.sleep(self.delay_timers.pop())
+            self.suppress_cancel = True
+            self._apply_rules('timer_status', False)
+
+        except asyncio.CancelledError:
+            logging.info('%s timer canceled', self.name)
+        finally:
+            logging.info('%s timer done', self.name)
+            self.suppress_cancel = False
+
+    def ensure_the_timer_is_running(self):
+        if self.is_not_running:
+            self.timer_task = asyncio.ensure_future(self._start_timer())
+
+    def add_time(self):
+        logging.debug('%s adding %ss', self.name, self.timer_period_in_seconds)
+        self.delay_timers.append(self.timer_period_in_seconds)
+        self.ensure_the_timer_is_running()
+
+    def cancel(self):
+        logging.debug('a cancel request has been made')
+        if self.is_running and not self.suppress_cancel:
+            logging.debug('%s cancel request', self.name)
+            self.delay_timers = []
+            self.timer_task.cancel()
+            self.timer_task = None
+        else:
+            logging.debug('cancel request rejected')
+
+
+
 class DurationTimer(TimeBasedTrigger):
     def __init__(
         self,
@@ -146,6 +211,8 @@ class DurationTimer(TimeBasedTrigger):
 
             self._apply_rules('timer_status', False)
 
+        except asyncio.CancelledError:
+            logging.info('% timer canceled', self.name)
         finally:
             logging.info('%s timer done', self.name)
 

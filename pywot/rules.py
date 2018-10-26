@@ -252,8 +252,9 @@ def make_thing(config, meta_definition):
                 except Exception as e:
                     # if the connection fails for any reason, reconnect
                     logging.error('web socket failure (%s): %s', self.web_socket_link, e)
-                    logging.info('waiting 30S to retry web socket to: %s', self.web_socket_link)
-                    await asyncio.sleep(30)
+#                     logging.info('waiting 30S to retry web socket to: %s', self.web_socket_link)
+#                     await asyncio.sleep(30)
+                    raise
 
         def subscribe_to_event(self, event_name):
             asyncio.ensure_future(self.async_subscribe_to_event(event_name))
@@ -279,6 +280,7 @@ def make_thing(config, meta_definition):
             setattr(self, hidden_property_name, new_value)
 
         def process_property_status_message(self, message):
+            logging.debug('%s property_change: %s', self.name, message)
             for a_property_name, new_value in message.items():
                 self.update_hidden_property(a_property_name, new_value)
                 self._apply_rules(a_property_name, new_value)
@@ -302,7 +304,6 @@ def make_thing(config, meta_definition):
             )
             logging.debug('%s setting %s to %s', self.name, a_property_name, a_value)
             setattr(self, hidden_instance_name, a_value)
-            self._apply_rules(a_property_name, a_value)
 
     DerivedThing.hidden_property_names = {}
     for a_property_name in meta_definition['properties'].keys():
