@@ -139,14 +139,14 @@ class DelayTimer(TimeBasedTrigger):
         self.ensure_the_timer_is_running()
 
     def cancel(self):
-        logging.debug('a cancel request has been made')
+        logging.info('a cancel request has been made')
         if self.is_running and not self.suppress_cancel:
-            logging.debug('%s cancel request', self.name)
+            logging.info('%s cancel request', self.name)
             self.delay_timers = []
             self.timer_task.cancel()
             self.timer_task = None
         else:
-            logging.debug('cancel request rejected')
+            logging.info('cancel request rejected')
 
 
 
