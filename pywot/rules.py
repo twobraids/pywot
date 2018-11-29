@@ -8,6 +8,7 @@ import string
 import re
 
 from functools import partial
+from contextlib import contextmanager
 from pytz import timezone
 
 from configman.dotdict import DotDict
@@ -191,7 +192,7 @@ def make_thing(config, meta_definition):
 
             meta_definiton_as_dot_dict[replacement_key] = value
 
-    class DerivedThing(Thing):
+    class ThingTalker(Thing):
         def __init__(self, config):
             self.config = config
             # meta_definition comes from the json representation of the thing
@@ -293,6 +294,21 @@ def make_thing(config, meta_definition):
             for a_rule in self.participating_rules:
                 a_rule.action(self, a_property_name, a_value)
 
+        @contextmanager
+        def batch_communication(self):
+            thing_proxy = DotDict()
+            try:
+                yield thing_proxy
+            finally:
+                message = {
+                    "messageType": "setProperty",
+                    "data": {}
+                }
+                for key in thing_proxy.keys_breadth_first():
+                    message["data"][key] = thing_proxy[key]
+                asyncio.ensure_future(self.command_queue.put(message))
+
+
     def get_property(hidden_instance_name, self):
         return getattr(self, hidden_instance_name)
 
@@ -304,14 +320,14 @@ def make_thing(config, meta_definition):
             logging.debug('%s setting %s to %s', self.name, a_property_name, a_value)
             setattr(self, hidden_instance_name, a_value)
 
-    DerivedThing.hidden_property_names = {}
+    ThingTalker.hidden_property_names = {}
     for a_property_name in meta_definition['properties'].keys():
         a_python_property_name = as_python_identifier(a_property_name)
         hidden_instance_name = '__{}'.format(a_python_property_name)
-        DerivedThing.hidden_property_names[a_property_name] = hidden_instance_name
-        DerivedThing.hidden_property_names[a_python_property_name] = hidden_instance_name
+        ThingTalker.hidden_property_names[a_property_name] = hidden_instance_name
+        ThingTalker.hidden_property_names[a_python_property_name] = hidden_instance_name
         setattr(
-            DerivedThing,
+            ThingTalker,
             a_python_property_name,
             property(
                 partial(get_property, hidden_instance_name),
@@ -319,7 +335,7 @@ def make_thing(config, meta_definition):
             )
         )
 
-    the_thing = DerivedThing(config)
+    the_thing = ThingTalker(config)
 
     # find the websocket URI
     for a_link_dict in the_thing.meta_definition.links:

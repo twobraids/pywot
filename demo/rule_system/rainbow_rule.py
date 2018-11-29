@@ -35,8 +35,9 @@ class RainbowRule(Rule):
         )
 
         for a_bulb, initial_color in zip(self.participating_bulbs, the_rainbow_of_colors):
-            a_bulb.on = True
-            a_bulb.color = initial_color
+            with a_bulb.batch_communication() as bulb_transaction:
+                bulb_transaction.on = True
+                bulb_transaction.color = initial_color
 
     def register_triggers(self):
         self.heartbeat = HeartBeat(self.config, 'the heart', "2s")
