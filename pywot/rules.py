@@ -80,7 +80,6 @@ class RuleSystem(RequiredConfig):
                     headers={
                         'Accept': 'application/json',
                         'Authorization': 'Bearer {}'.format(self.config.things_gateway_auth_key),
-                        'Content-Type': 'application/json'
                     }
                 ) as response:
                     all_things_meta = json.loads(await response.text())
