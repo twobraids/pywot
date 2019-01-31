@@ -215,6 +215,7 @@ def make_thing(config, meta_definition):
                     a_property_name: a_value
                 }
             }
+            logging.info('queue put %s: %s', self.name, message)
             await self.command_queue.put(message)
 
         async def receive_websocket_messages(self, websocket):
@@ -231,8 +232,9 @@ def make_thing(config, meta_definition):
             while True:
                 command = await self.command_queue.get()
                 command_as_string = json.dumps(command)
-                logging.debug('sending: %s', command_as_string)
+                logging.info('sending: %s %s', self.name, command_as_string)
                 await websocket.send(command_as_string)
+                await asyncio.sleep(0.25)
 
         async def trigger_detection_loop(self):
             while True:
@@ -268,7 +270,7 @@ def make_thing(config, meta_definition):
                     }
                 }
                 string = json.dumps(event_subscription)
-                logging.debug('queuing: %s', string)
+                logging.info('queue put %s: %s', self.name, event_subscription)
                 await self.command_queue.put(event_subscription)
 
             except Exception as e:
@@ -306,6 +308,7 @@ def make_thing(config, meta_definition):
                 }
                 for key in thing_proxy.keys_breadth_first():
                     message["data"][key] = thing_proxy[key]
+                logging.info('queue put %s: %s', self.name, message)
                 asyncio.ensure_future(self.command_queue.put(message))
 
 
@@ -313,12 +316,12 @@ def make_thing(config, meta_definition):
         return getattr(self, hidden_instance_name)
 
     def change_property(a_property_name, hidden_instance_name, self, a_value):
-        if a_value != getattr(self, hidden_instance_name):
-            asyncio.ensure_future(
-                self.async_change_property(a_property_name, a_value)
-            )
-            logging.debug('%s setting %s to %s', self.name, a_property_name, a_value)
-            setattr(self, hidden_instance_name, a_value)
+        #if a_value != getattr(self, hidden_instance_name):
+        asyncio.ensure_future(
+            self.async_change_property(a_property_name, a_value)
+        )
+        logging.debug('%s setting %s to %s', self.name, a_property_name, a_value)
+        setattr(self, hidden_instance_name, a_value)
 
     ThingTalker.hidden_property_names = {}
     for a_property_name in meta_definition['properties'].keys():
