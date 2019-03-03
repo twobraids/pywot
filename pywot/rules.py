@@ -22,6 +22,9 @@ from pywot import (
     logging_config,
     log_config
 )
+from pywot.thing_dataclass import(
+    create_dataclass,
+)
 
 
 class RuleSystem(RequiredConfig):
@@ -201,6 +204,10 @@ def make_thing(config, meta_definition):
             self.name = self.meta_definition.name
             self.participating_rules = []
             self.command_queue = asyncio.Queue()
+            self.dataclass = create_dataclass(
+                '{}DataClass'.format(self.name),
+                self.meta_definition
+            )
 
         @staticmethod
         def quote_strings(a_value):
@@ -295,6 +302,14 @@ def make_thing(config, meta_definition):
         def _apply_rules(self, a_property_name, a_value=None):
             for a_rule in self.participating_rules:
                 a_rule.action(self, a_property_name, a_value)
+
+        def set(self, a_dataclass):
+            message = {
+                "messageType": "setProperty",
+                "data": a_dataclass.as_dict()
+            }
+            logging.info('queue put %s: %s', self.name, message)
+            asyncio.ensure_future(self.command_queue.put(message))
 
         @contextmanager
         def batch_communication(self):
