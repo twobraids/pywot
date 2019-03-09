@@ -211,6 +211,7 @@ def make_thing(config, meta_definition):
                 '{}DataClass'.format(self.name),
                 self.meta_definition
             )
+            self.connected = False
 
         @staticmethod
         def quote_strings(a_value):
@@ -220,7 +221,7 @@ def make_thing(config, meta_definition):
 
         def state(self):
             "create a dataclass as a snapshot of current state"
-            kwargs = self.dataclass.kwargs_from_thing()
+            kwargs = self.dataclass.kwargs_from_thing(self)
             return self.dataclass(**kwargs)
 
 
@@ -237,15 +238,19 @@ def make_thing(config, meta_definition):
         async def receive_websocket_messages(self, websocket):
             async for message in websocket:
                 raw = json.loads(message)
-                logging.debug('property %s', raw)
+                logging.info('property %s', raw)
                 message = raw['data']
                 if raw['messageType'] == 'propertyStatus':
                     self.process_property_status_message(message)
                 elif raw['messageType'] == 'event':
                     self.process_event_message(message)
+                elif raw['messageType'] == 'connected':
+                    self.connected = True
 
         async def send_queued_messages(self, websocket):
             while True:
+                while not self.connected:
+                    await asyncio.sleep(2.0)
                 command = await self.command_queue.get()
                 command_as_string = json.dumps(command)
                 logging.info('sending: %s %s', self.name, command_as_string)
