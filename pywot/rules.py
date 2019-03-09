@@ -27,6 +27,9 @@ from pywot.thing_dataclass import(
 )
 
 
+DoNotCare = None
+
+
 class RuleSystem(RequiredConfig):
     required_config = Namespace()
     required_config.add_option(
@@ -214,6 +217,12 @@ def make_thing(config, meta_definition):
             if isinstance(a_value, str):
                 return '"{}"'.format(a_value)
             return a_value
+
+        def state(self):
+            "create a dataclass as a snapshot of current state"
+            kwargs = self.dataclass.kwargs_from_thing()
+            return self.dataclass(**kwargs)
+
 
         async def async_change_property(self, a_property_name, a_value):
             message = {
