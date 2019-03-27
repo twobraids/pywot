@@ -232,15 +232,15 @@ def make_thing(config, meta_definition):
                     a_property_name: a_value
                 }
             }
-            logging.info('queue put %s: %s', self.name, message)
+            logging.debug('queue put %s: %s', self.name, message)
             await self.command_queue.put(message)
 
         async def receive_websocket_messages(self, websocket):
             async for message in websocket:
                 raw = json.loads(message)
-                logging.info('property %s', raw)
                 message = raw['data']
                 if raw['messageType'] == 'propertyStatus':
+                    logging.info('property status %s.%s', self.name, raw)
                     self.process_property_status_message(message)
                 elif raw['messageType'] == 'event':
                     self.process_event_message(message)
