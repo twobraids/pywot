@@ -8,6 +8,7 @@ import string
 import re
 
 from functools import partial
+from time import sleep
 from contextlib import contextmanager
 from pytz import timezone
 
@@ -67,6 +68,7 @@ class RuleSystem(RequiredConfig):
     async def initialize(self):
         self.all_things = await self.get_all_things()
         self.set_of_participating_things = set(self.all_things)
+        logging.info('initialization complete')
 
     def find_in_all_things(self, name_of_thing):
         for a_thing in self.all_things:
@@ -75,35 +77,42 @@ class RuleSystem(RequiredConfig):
         raise Exception('{} Cannot be found in all_things'.format(name_of_thing))
 
     def add_rule(self, a_rule):
+        logging.info('%s being added', a_rule.__class__.__name__)
         for a_thing in a_rule.triggering_things.values():
             a_thing.participating_rules.append(a_rule)
             self.set_of_participating_things.add(a_thing)
 
     async def get_all_things(self):
-        async with aiohttp.ClientSession() as session:
-            async with async_timeout.timeout(self.config.seconds_for_timeout):
-                async with session.get(
-                    '{}/things'.format(self.config.http_things_gateway_host),
-                    headers={
-                        'Accept': 'application/json',
-                        'Authorization': 'Bearer {}'.format(self.config.things_gateway_auth_key),
-                    }
-                ) as response:
-                    all_things_meta = json.loads(await response.text())
-        # each thing needs a list of participating_rules.  The participating_rules are rules
-        # that use  the things in their predicates.  Each thing that has participating_rules
-        # will have an async function to respond to state changes.  This async function will
-        # iterate through the list of listening rules applying the predicate and if the
-        # predicate becomes True, then starting the async action.
-        all_things = []
-        for a_thing_meta in all_things_meta:
-            a_thing = make_thing(self.config, a_thing_meta)
-            all_things.append(a_thing)
-        return all_things
+        while True:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with async_timeout.timeout(self.config.seconds_for_timeout):
+                        async with session.get(
+                            '{}/things'.format(self.config.http_things_gateway_host),
+                            headers={
+                                'Accept': 'application/json',
+                                'Authorization': 'Bearer {}'.format(self.config.things_gateway_auth_key),
+                            }
+                        ) as response:
+                            all_things_meta = json.loads(await response.text())
+                # each thing needs a list of participating_rules.  The participating_rules are rules
+                # that use  the things in their predicates.  Each thing that has participating_rules
+                # will have an async function to respond to state changes.  This async function will
+                # iterate through the list of listening rules applying the predicate and if the
+                # predicate becomes True, then starting the async action.
+                all_things = []
+                for a_thing_meta in all_things_meta:
+                    a_thing = make_thing(self.config, a_thing_meta)
+                    all_things.append(a_thing)
+                return all_things
+            except Exception as e:
+                logging.error('connection  refused %s\nretrying in 30 seconds', e)
+                sleep(30.0)
 
     async def go(self):
         logging.debug('go')
         for a_trigger in self.set_of_participating_things:
+            logging.info('starting trigger_dectection_loop for %s', a_trigger.name)
             try:
                 asyncio.ensure_future(
                     a_trigger.trigger_detection_loop()
@@ -211,7 +220,7 @@ def make_thing(config, meta_definition):
                 '{}DataClass'.format(self.name),
                 self.meta_definition
             )
-            self.connected = False
+            self.connection_acknowledged = False
 
         @staticmethod
         def quote_strings(a_value):
@@ -223,7 +232,6 @@ def make_thing(config, meta_definition):
             "create a dataclass as a snapshot of current state"
             kwargs = self.dataclass.kwargs_from_thing(self)
             return self.dataclass(**kwargs)
-
 
         async def async_change_property(self, a_property_name, a_value):
             message = {
@@ -245,28 +253,32 @@ def make_thing(config, meta_definition):
                 elif raw['messageType'] == 'event':
                     self.process_event_message(message)
                 elif raw['messageType'] == 'connected':
-                    self.connected = True
+                    self.connection_acknowledged = raw['data']
 
         async def send_queued_messages(self, websocket):
             while True:
-                while not self.connected:
-                    await asyncio.sleep(2.0)
+                # ugh, polling is bad, rethink this
+                if not self.connection_acknowledged:
+                    logging.info('%s (%s) waiting for connection', self.name, self.id)
+                    await asyncio.sleep(2)
+                    continue
                 command = await self.command_queue.get()
                 command_as_string = json.dumps(command)
-                logging.info('sending: %s %s', self.name, command_as_string)
+                logging.info('%s (%s) sending: %s', self.name, self.id, command_as_string)
                 await websocket.send(command_as_string)
                 await asyncio.sleep(0.25)
 
         async def trigger_detection_loop(self):
             while True:
                 try:
+                    logging.info('creating Web Socket %s', self.web_socket_link)
                     async with websockets.connect(
                         '{}?jwt={}'.format(
                             self.web_socket_link,
                             self.config.things_gateway_auth_key
                         ),
                     ) as websocket:
-                        logging.debug('web socket established to %s', self.web_socket_link)
+                        logging.info('Web Socket established to %s', self.web_socket_link)
                         await asyncio.gather(
                             self.receive_websocket_messages(websocket),
                             self.send_queued_messages(websocket)
@@ -275,9 +287,9 @@ def make_thing(config, meta_definition):
                 except Exception as e:
                     # if the connection fails for any reason, reconnect
                     logging.error('web socket failure (%s): %s', self.web_socket_link, e)
-#                     logging.info('waiting 30S to retry web socket to: %s', self.web_socket_link)
-#                     await asyncio.sleep(30)
-                    raise
+                    logging.info('waiting 30S to retry web socket to: %s', self.web_socket_link)
+                    await asyncio.sleep(30)
+                    #raise
 
         def subscribe_to_event(self, event_name):
             asyncio.ensure_future(self.async_subscribe_to_event(event_name))
