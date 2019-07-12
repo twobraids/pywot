@@ -340,11 +340,11 @@ class DailySolarEventsTrigger(TimeBasedTrigger):
         while True:
             event_schedule = self.get_schedule()
             for event_datetime, event_name in event_schedule:
-                logging.debug('new schedule %s %s', event_name, event_datetime)
                 now = self.now_in_timezone(self.location.tz)
                 if event_datetime < now:
                     continue
                 time_delta = event_datetime - now
+                logging.info('new schedule %s in %s (%s)', event_name, time_delta, event_datetime)
                 asyncio.ensure_future(self.trigger_event(now, time_delta, event_name))
 
             now = self.now_in_timezone(self.location.tz)
