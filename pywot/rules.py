@@ -213,7 +213,7 @@ def make_thing(config, meta_definition):
             # meta_definition comes from the json representation of the thing
             self.meta_definition = meta_definiton_as_dot_dict
             self.id = self.meta_definition.href.split('/')[-1]
-            self.name = self.meta_definition.name
+            self.name = self.meta_definition.title
             self.participating_rules = []
             self.command_queue = asyncio.Queue()
             self.dataclass = create_dataclass(

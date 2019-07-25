@@ -312,8 +312,9 @@ class DailySolarEventsTrigger(TimeBasedTrigger):
                 event = getattr(self.location, base_event_name)()
             except Exception as e:
                 # astral will raise exceptions if any of the sun events
-                # cannot be calculated - for example there is no sunrise
-                # or sunset in mid summer of mid winter.
+                # cannot be calculated for a particular day - for example, there are high latitude
+                # places where the time-delta between sunrise and sunset is measured in days.  Not
+                # every day gets a sunrise or sunset.
                 logging.error(e)
                 continue
 
