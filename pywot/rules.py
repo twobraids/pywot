@@ -271,14 +271,14 @@ def make_thing(config, meta_definition):
         async def trigger_detection_loop(self):
             while True:
                 try:
-                    logging.info('creating Web Socket %s', self.web_socket_link)
+                    logging.info('creating Web Socket %s', self.web_socket_uri)
                     async with websockets.connect(
                         '{}?jwt={}'.format(
-                            self.web_socket_link,
+                            self.web_socket_uri,
                             self.config.things_gateway_auth_key
                         ),
                     ) as websocket:
-                        logging.info('Web Socket established to %s', self.web_socket_link)
+                        logging.info('Web Socket established to %s', self.web_socket_uri)
                         await asyncio.gather(
                             self.receive_websocket_messages(websocket),
                             self.send_queued_messages(websocket)
@@ -286,8 +286,8 @@ def make_thing(config, meta_definition):
 
                 except Exception as e:
                     # if the connection fails for any reason, reconnect
-                    logging.error('web socket failure (%s): %s', self.web_socket_link, e)
-                    logging.info('waiting 30S to retry web socket to: %s', self.web_socket_link)
+                    logging.error('web socket failure (%s): %s', self.web_socket_uri, e)
+                    logging.info('waiting 30S to retry web socket to: %s', self.web_socket_uri)
                     await asyncio.sleep(30)
                     #raise
 
@@ -384,7 +384,7 @@ def make_thing(config, meta_definition):
     # find the websocket URI
     for a_link_dict in the_thing.meta_definition.links:
         if a_link_dict['rel'] == "alternate" and a_link_dict['href'].startswith('ws'):
-            the_thing.web_socket_link = a_link_dict['href']
+            the_thing.web_socket_uri = a_link_dict['href']
 
     for a_property_name in meta_definition['properties'].keys():
         a_python_property_name = as_python_identifier(a_property_name)
