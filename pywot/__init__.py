@@ -63,7 +63,7 @@ class WoTProperty:
         self.name = name
         if value_source_fn is not None:
             # since this Wot Property has its own function for a source of values, it will need an
-            # async loop to poll for the values.  We define it here as a closure over that
+            # async loop to poll for the values.  We define it here as a closure over
             # the `value_source_fn`.  It will be executed only after instantiation by the server
             # and the first parameter is an instance of Thing, we're effectively making a new
             # instance method for the WoTThing class.  Ideally, this should be a member of the
