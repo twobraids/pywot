@@ -9,12 +9,11 @@ types = {
     "array": list,
     "number": float,
     "integer": int,
-    "string": str
+    "string": str,
 }
 
 
 class ThingDataClassBase:
-
     def _a_comparitor(self, other, compare_fn):
         if not isinstance(self, other.__class__):
             raise TypeError
@@ -56,8 +55,6 @@ class ThingDataClassBase:
             d[self_property_name] = getattr(a_thing, self_property_name)
         return d
 
-
-
     def __eq__(self, other):
         return self._a_comparitor(other, lambda a, b: a == b)
 
@@ -78,19 +75,17 @@ class ThingDataClassBase:
 
 
 def create_dataclass(name, a_thing_meta):
-    a_thing_meta_properties = a_thing_meta['properties']
+    a_thing_meta_properties = a_thing_meta["properties"]
     fields = []
     for key in a_thing_meta_properties.keys():
-        fields.append((key, types[a_thing_meta_properties[key]['type']]))
+        fields.append((key, types[a_thing_meta_properties[key]["type"]]))
 
     thing_dataclass = make_dataclass(
         name,
         fields,
         bases=(ThingDataClassBase,),
-        namespace={
-            '__hash__': lambda self: self._hash_fn()
-        },
-        frozen=True
+        namespace={"__hash__": lambda self: self._hash_fn()},
+        frozen=True,
     )
     thing_dataclass.meta = fields
     return thing_dataclass
