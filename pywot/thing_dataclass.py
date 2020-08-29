@@ -1,3 +1,5 @@
+import logging
+
 from dataclasses import dataclass, make_dataclass
 
 DoNotCare = None
@@ -78,7 +80,10 @@ def create_dataclass(name, a_thing_meta):
     a_thing_meta_properties = a_thing_meta["properties"]
     fields = []
     for key in a_thing_meta_properties.keys():
-        fields.append((key, types[a_thing_meta_properties[key]["type"]]))
+        try:
+            fields.append((key, types[a_thing_meta_properties[key]["type"]]))
+        except KeyError as e:
+            logging.info(f"Error: property {key} has no {e}, ignoring it")
 
     thing_dataclass = make_dataclass(
         name,
