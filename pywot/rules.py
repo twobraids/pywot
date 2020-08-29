@@ -184,7 +184,7 @@ def make_thing(config, meta_definition):
     meta_definiton_as_dot_dict = DotDict(meta_definition)
     # sanitize so that all keys are proper Python identifiers
     for a_key in list(meta_definiton_as_dot_dict.keys_breadth_first()):
-        if " " in a_key or "@" in a_key:
+        if " " in a_key or "@" in a_key or "-" in a_key:
             value = meta_definiton_as_dot_dict[a_key]
             del meta_definiton_as_dot_dict[a_key]
             replacement_key = as_python_identifier(a_key)
