@@ -244,10 +244,11 @@ def make_thing(config, thing_definition_as_dict):
                     logging.info("%s (%s) waiting for connection", self.name, self.id)
                     await asyncio.sleep(2)
                     continue
-                command = await self.command_queue.get()
-                command_as_string = json.dumps(command)
+                command_as_dict = await self.command_queue.get()
+                command_as_string = json.dumps(command_as_dict)
                 logging.info("%s (%s) sending: %s", self.name, self.id, command_as_string)
                 await websocket.send(command_as_string)
+                # experience shows that sending commands too quickly means that some get lost.
                 await asyncio.sleep(0.25)
 
         async def trigger_detection_loop(self):
@@ -255,9 +256,7 @@ def make_thing(config, thing_definition_as_dict):
                 try:
                     logging.info("creating Web Socket %s", self.web_socket_uri)
                     async with websockets.connect(
-                        "{}?jwt={}".format(
-                            self.web_socket_uri, self.config.things_gateway_auth_key
-                        ),
+                        f"{self.web_socket_uri}?jwt={self.config.things_gateway_auth_key}",
                     ) as websocket:
                         logging.info("Web Socket established to %s", self.web_socket_uri)
                         await asyncio.gather(
@@ -277,13 +276,13 @@ def make_thing(config, thing_definition_as_dict):
 
         async def async_subscribe_to_event(self, event_name):
             try:
-                event_subscription = {
+                event_subscription_command_as_dict = {
                     "messageType": "addEventSubscription",
                     "data": {event_name: {}},
                 }
-                string = json.dumps(event_subscription)
-                logging.info("queue put %s: %s", self.name, event_subscription)
-                await self.command_queue.put(event_subscription)
+                event_subscription_command_as_string = json.dumps(event_subscription)
+                logging.info("queue put %s: %s", self.name, event_subscription_command_as_dict)
+                await self.command_queue.put(event_subscription_command_as_string)
 
             except Exception as e:
                 logging.error(e)
@@ -293,15 +292,15 @@ def make_thing(config, thing_definition_as_dict):
             logging.debug("%s setting %s to %s", self.name, hidden_property_name, new_value)
             setattr(self, hidden_property_name, new_value)
 
-        def process_property_status_message(self, message):
-            logging.debug("%s property_change: %s", self.name, message)
-            for a_property_name, new_value in message.items():
+        def process_property_status_message(self, message_as_dict):
+            logging.debug("%s property_change: %s", self.name, message_as_dict)
+            for a_property_name, new_value in message_as_dict.items():
                 self.update_hidden_property(a_property_name, new_value)
                 self._apply_rules(a_property_name, new_value)
 
-        def process_event_message(self, message):
-            logging.debug("process_event_message: %s", message)
-            for event_name in message.keys():
+        def process_event_message(self, message_as_dict):
+            logging.debug("process_event_message: %s", message_as_dict)
+            for event_name in message_as_dict.keys():
                 self._apply_rules(event_name)
 
         def _apply_rules(self, a_property_name, a_value=None):
@@ -319,11 +318,11 @@ def make_thing(config, thing_definition_as_dict):
             try:
                 yield thing_proxy
             finally:
-                message = {"messageType": "setProperty", "data": {}}
+                message_as_dict = {"messageType": "setProperty", "data": {}}
                 for key in thing_proxy.keys_breadth_first():
-                    message["data"][key] = thing_proxy[key]
-                logging.info("queue put %s: %s", self.name, message)
-                asyncio.ensure_future(self.command_queue.put(message))
+                    message_as_dict["data"][key] = thing_proxy[key]
+                logging.info("queue put %s: %s", self.name, message_as_dict)
+                asyncio.ensure_future(self.command_queue.put(message_as_dict))
 
     def get_property(hidden_instance_name, self):
         return getattr(self, hidden_instance_name)
@@ -337,7 +336,7 @@ def make_thing(config, thing_definition_as_dict):
     ThingTalker.hidden_property_names = {}
     for a_property_name in thing_definition_as_dict["properties"].keys():
         a_python_property_name = as_python_identifier(a_property_name)
-        hidden_instance_name = "__{}".format(a_python_property_name)
+        hidden_instance_name = f"__{a_python_property_name}"
         ThingTalker.hidden_property_names[a_property_name] = hidden_instance_name
         ThingTalker.hidden_property_names[a_python_property_name] = hidden_instance_name
         setattr(
@@ -358,7 +357,7 @@ def make_thing(config, thing_definition_as_dict):
 
     for a_property_name in thing_definition_as_dict["properties"].keys():
         a_python_property_name = as_python_identifier(a_property_name)
-        hidden_instance_name = "__{}".format(a_python_property_name)
+        hidden_instance_name = f"__{a_python_property_name}"
         setattr(the_thing, hidden_instance_name, None)
     return the_thing
 
