@@ -178,7 +178,10 @@ class Rule:
 
 
 def make_thing(config, thing_definition_as_dict):
-    # meta_definition comes from the json representation of the thing
+    # thing_definition_as_dict comes from the json representation of the thing
+    # Keys in Python dicts, unlike the Javascript equivalent, can only be accessed
+    # by using the [] syntax. By recasting the dict as a DotDict, we get the ability
+    # to access keys using "." syntax.
     thing_definiton_as_dot_dict = DotDict(thing_definition_as_dict)
     # sanitize so that all keys are proper Python identifiers
     for a_key in list(thing_definiton_as_dot_dict.keys_breadth_first()):
@@ -190,15 +193,20 @@ def make_thing(config, thing_definition_as_dict):
             thing_definiton_as_dot_dict[replacement_key] = value
 
     class ThingTalker(Thing):
+        """This class embodies the RuleSystem's implementation of a Thing from the Things Gateway.
+        It makes the Things' Things Gateway properties accessible via dot notation (thing.property)"""
         def __init__(self, config):
             self.config = config
-            # meta_definition comes from the json representation of the thing
+            # thing_definiton_as_dot_dict comes from the json representation of the thing from the
+            # Things Gateway
             self.thing_definition_as_dot_dict = thing_definiton_as_dot_dict
             self.id = self.thing_definition_as_dot_dict.href.split("/")[-1]
             self.name = self.thing_definition_as_dot_dict.title
             self.rules_that_use_this_thing = []
             self.command_queue = asyncio.Queue()
-            self.dataclass = create_dataclass(f"{self.name}DataClass", self.thing_definition_as_dot_dict)
+            self.dataclass = create_dataclass(
+                f"{self.name}DataClass", self.thing_definition_as_dot_dict
+            )
             self.connection_acknowledged = False
 
         @staticmethod
@@ -209,25 +217,25 @@ def make_thing(config, thing_definition_as_dict):
 
         def state(self):
             "create a dataclass as a snapshot of current state"
-            kwargs = self.dataclass.a_thing_state_as_dict(self)
-            return self.dataclass(**kwargs)
+            a_thing_state_as_dict = self.dataclass.a_thing_state_as_dict(self)
+            return self.dataclass(**a_thing_state_as_dict)
 
         async def async_change_property(self, a_property_name, a_value):
-            message = {"messageType": "setProperty", "data": {a_property_name: a_value}}
-            logging.debug("queue put %s: %s", self.name, message)
-            await self.command_queue.put(message)
+            message_as_dict = {"messageType": "setProperty", "data": {a_property_name: a_value}}
+            logging.debug("queue put %s: %s", self.name, message_as_dict)
+            await self.command_queue.put(message_as_dict)
 
         async def receive_websocket_messages(self, websocket):
-            async for message in websocket:
-                raw = json.loads(message)
-                message = raw["data"]
-                if raw["messageType"] == "propertyStatus":
-                    logging.info("property status %s.%s", self.name, raw)
-                    self.process_property_status_message(message)
-                elif raw["messageType"] == "event":
-                    self.process_event_message(message)
-                elif raw["messageType"] == "connected":
-                    self.connection_acknowledged = raw["data"]
+            async for message_as_string in websocket:
+                message_as_dict = json.loads(message_as_string)
+                message_data_as_dict = message_as_dict["data"]
+                if message_as_dict["messageType"] == "propertyStatus":
+                    logging.info("property status %s.%s", self.name, message_as_dict)
+                    self.process_property_status_message(message_data_as_dict)
+                elif message_as_dict["messageType"] == "event":
+                    self.process_event_message(message_data_as_dict)
+                elif message_as_dict["messageType"] == "connected":
+                    self.connection_acknowledged = message_as_dict["data"]
 
         async def send_queued_messages(self, websocket):
             while True:
