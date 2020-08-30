@@ -280,9 +280,8 @@ def make_thing(config, thing_definition_as_dict):
                     "messageType": "addEventSubscription",
                     "data": {event_name: {}},
                 }
-                event_subscription_command_as_string = json.dumps(event_subscription)
                 logging.info("queue put %s: %s", self.name, event_subscription_command_as_dict)
-                await self.command_queue.put(event_subscription_command_as_string)
+                await self.command_queue.put(event_subscription_command_as_dict)
 
             except Exception as e:
                 logging.error(e)
