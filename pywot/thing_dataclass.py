@@ -50,7 +50,7 @@ class ThingDataClassBase:
         return d
 
     @classmethod
-    def kwargs_from_thing(klass, a_thing):
+    def a_thing_state_as_dict(klass, a_thing):
         d = {}
         for self_meta_prop in klass.meta:
             self_property_name, self_property_type = self_meta_prop
@@ -76,12 +76,12 @@ class ThingDataClassBase:
         return self._a_comparitor(other, lambda a, b: a >= b)
 
 
-def create_dataclass(name, a_thing_meta):
-    a_thing_meta_properties = a_thing_meta["properties"]
+def create_dataclass(name, a_thing_definition_as_dict):
+    properties_from_a_thing_definition = a_thing_definition_as_dict["properties"]
     fields = []
-    for key in a_thing_meta_properties.keys():
+    for key in properties_from_a_thing_definition.keys():
         try:
-            fields.append((key, types[a_thing_meta_properties[key]["type"]]))
+            fields.append((key, types[properties_from_a_thing_definition[key]["type"]]))
         except KeyError as e:
             logging.info(f"Error: property {key} has no {e}, ignoring it")
 

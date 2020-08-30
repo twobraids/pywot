@@ -54,7 +54,7 @@ class RuleSystem(RequiredConfig):
         self.config = config
 
     async def initialize(self):
-        self.all_things = await self.get_all_things()
+        self.all_things = await self.get_list_of_all_known_things()
         self.set_of_triggers_that_use_this_rule_system = set(self.all_things)
         logging.info("initialization complete")
 
@@ -70,31 +70,29 @@ class RuleSystem(RequiredConfig):
             a_thing.rules_that_use_this_thing.append(a_rule)
             self.set_of_triggers_that_use_this_rule_system.add(a_thing)
 
-    async def get_all_things(self):
+    async def get_list_of_all_known_things(self):
         while True:
             try:
                 async with aiohttp.ClientSession() as session:
                     async with async_timeout.timeout(self.config.seconds_for_timeout):
                         async with session.get(
-                            "{}/things".format(self.config.http_things_gateway_host),
+                            f"{self.config.http_things_gateway_host}/things",
                             headers={
                                 "Accept": "application/json",
-                                "Authorization": "Bearer {}".format(
-                                    self.config.things_gateway_auth_key
-                                ),
+                                "Authorization": f"Bearer {self.config.things_gateway_auth_key}",
                             },
                         ) as response:
-                            all_things_meta = json.loads(await response.text())
+                            definitions_of_all_things_as_list = json.loads(await response.text())
                 # each thing needs a list of participating_rules.  The participating_rules are rules
                 # that use  the things in their predicates.  Each thing that has participating_rules
                 # will have an async function to respond to state changes.  This async function will
                 # iterate through the list of listening rules applying the predicate and if the
                 # predicate becomes True, then starting the async action.
-                all_things = []
-                for a_thing_meta in all_things_meta:
-                    a_thing = make_thing(self.config, a_thing_meta)
-                    all_things.append(a_thing)
-                return all_things
+                list_of_all_things = []
+                for a_thing_definition_as_dict in definitions_of_all_things_as_list:
+                    a_thing = make_thing(self.config, a_thing_definition_as_dict)
+                    list_of_all_things.append(a_thing)
+                return list_of_all_things
             except Exception as e:
                 logging.error("connection  refused %s\nretrying in 30 seconds", e)
                 sleep(30.0)
@@ -179,39 +177,39 @@ class Rule:
         pass
 
 
-def make_thing(config, meta_definition):
+def make_thing(config, thing_definition_as_dict):
     # meta_definition comes from the json representation of the thing
-    meta_definiton_as_dot_dict = DotDict(meta_definition)
+    thing_definiton_as_dot_dict = DotDict(thing_definition_as_dict)
     # sanitize so that all keys are proper Python identifiers
-    for a_key in list(meta_definiton_as_dot_dict.keys_breadth_first()):
+    for a_key in list(thing_definiton_as_dot_dict.keys_breadth_first()):
         if " " in a_key or "@" in a_key or "-" in a_key:
-            value = meta_definiton_as_dot_dict[a_key]
-            del meta_definiton_as_dot_dict[a_key]
+            value = thing_definiton_as_dot_dict[a_key]
+            del thing_definiton_as_dot_dict[a_key]
             replacement_key = as_python_identifier(a_key)
 
-            meta_definiton_as_dot_dict[replacement_key] = value
+            thing_definiton_as_dot_dict[replacement_key] = value
 
     class ThingTalker(Thing):
         def __init__(self, config):
             self.config = config
             # meta_definition comes from the json representation of the thing
-            self.meta_definition = meta_definiton_as_dot_dict
-            self.id = self.meta_definition.href.split("/")[-1]
-            self.name = self.meta_definition.title
+            self.thing_definition_as_dot_dict = thing_definiton_as_dot_dict
+            self.id = self.thing_definition_as_dot_dict.href.split("/")[-1]
+            self.name = self.thing_definition_as_dot_dict.title
             self.rules_that_use_this_thing = []
             self.command_queue = asyncio.Queue()
-            self.dataclass = create_dataclass("{}DataClass".format(self.name), self.meta_definition)
+            self.dataclass = create_dataclass(f"{self.name}DataClass", self.thing_definition_as_dot_dict)
             self.connection_acknowledged = False
 
         @staticmethod
         def quote_strings(a_value):
             if isinstance(a_value, str):
-                return '"{}"'.format(a_value)
+                return f'"{a_value}"'
             return a_value
 
         def state(self):
             "create a dataclass as a snapshot of current state"
-            kwargs = self.dataclass.kwargs_from_thing(self)
+            kwargs = self.dataclass.a_thing_state_as_dict(self)
             return self.dataclass(**kwargs)
 
         async def async_change_property(self, a_property_name, a_value):
@@ -329,7 +327,7 @@ def make_thing(config, meta_definition):
         setattr(self, hidden_instance_name, a_value)
 
     ThingTalker.hidden_property_names = {}
-    for a_property_name in meta_definition["properties"].keys():
+    for a_property_name in thing_definition_as_dict["properties"].keys():
         a_python_property_name = as_python_identifier(a_property_name)
         hidden_instance_name = "__{}".format(a_python_property_name)
         ThingTalker.hidden_property_names[a_property_name] = hidden_instance_name
@@ -346,11 +344,11 @@ def make_thing(config, meta_definition):
     the_thing = ThingTalker(config)
 
     # find the websocket URI
-    for a_link_dict in the_thing.meta_definition.links:
+    for a_link_dict in the_thing.thing_definition_as_dot_dict.links:
         if a_link_dict["rel"] == "alternate" and a_link_dict["href"].startswith("ws"):
             the_thing.web_socket_uri = a_link_dict["href"]
 
-    for a_property_name in meta_definition["properties"].keys():
+    for a_property_name in thing_definition_as_dict["properties"].keys():
         a_python_property_name = as_python_identifier(a_property_name)
         hidden_instance_name = "__{}".format(a_python_property_name)
         setattr(the_thing, hidden_instance_name, None)
