@@ -308,9 +308,9 @@ def make_thing(config, thing_definition_as_dict):
                 a_rule.action(self, a_property_name, a_value)
 
         def set(self, a_dataclass):
-            message = {"messageType": "setProperty", "data": a_dataclass.as_dict()}
-            logging.info("queue put %s: %s", self.name, message)
-            asyncio.ensure_future(self.command_queue.put(message))
+            message_as_dict = {"messageType": "setProperty", "data": a_dataclass.as_dict()}
+            logging.info("queue put %s: %s", self.name, message_as_dict)
+            asyncio.ensure_future(self.command_queue.put(message_as_dict))
 
         @contextmanager
         def batch_communication(self):
