@@ -12,12 +12,12 @@ class RuleTrigger:
     def __init__(self, config, name):
         self.config = config
         self.name = name
-        self.rules_that_use_this_trigger = []
+        self.rules_that_use_this_thing = []
         self.canceled = False
 
     def _apply_rules(self, a_property_name=None, a_value=None):
         if self.canceled is False:
-            for a_rule in self.rules_that_use_this_trigger:
+            for a_rule in self.rules_that_use_this_thing:
                 a_rule.action(self, a_property_name, a_value)
 
 
