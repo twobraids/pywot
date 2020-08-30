@@ -66,8 +66,8 @@ class RuleSystem(RequiredConfig):
 
     def add_rule(self, a_rule):
         logging.info("%s being added", a_rule.__class__.__name__)
-        for a_thing in a_rule.triggering_things.values():
-            a_thing.participating_rules.append(a_rule)
+        for a_thing in a_rule.things_that_trigger_this_rule.values():
+            a_thing.rules_that_use_this_thing.append(a_rule)
             self.set_of_participating_things.add(a_thing)
 
     async def get_all_things(self):
@@ -134,7 +134,7 @@ class Rule:
         self.name = name
         # these are the things that will trigger the rule when they
         # change state.
-        self.triggering_things = {}
+        self.things_that_trigger_this_rule = {}
 
         # entirely for convenience, put all potential things into the rule object
         # as instance variables, this makes rules clearer to write
@@ -149,7 +149,7 @@ class Rule:
                 # thing in the Things Gateway.
                 name = a_triggering_thing
                 try:
-                    self.triggering_things[name] = self.find_thing(name)
+                    self.things_that_trigger_this_rule[name] = self.find_thing(name)
                 except KeyError as e:
                     logging.info('"%s" cannot be found in the list of all_things', name)
             else:
@@ -157,7 +157,7 @@ class Rule:
                 # thing-like object.  No matter what type of object it is, it must
                 # have a "name" attribute.
                 name = a_triggering_thing.name
-                self.triggering_things[name] = a_triggering_thing
+                self.things_that_trigger_this_rule[name] = a_triggering_thing
                 if not isinstance(a_triggering_thing, Thing):
                     # make sure we can refrence all the triggering things in the form
                     # self.thing_name.  Since objects of type Thing were setup this way
@@ -198,7 +198,7 @@ def make_thing(config, meta_definition):
             self.meta_definition = meta_definiton_as_dot_dict
             self.id = self.meta_definition.href.split("/")[-1]
             self.name = self.meta_definition.title
-            self.participating_rules = []
+            self.rules_that_use_this_thing = []
             self.command_queue = asyncio.Queue()
             self.dataclass = create_dataclass("{}DataClass".format(self.name), self.meta_definition)
             self.connection_acknowledged = False
@@ -299,7 +299,7 @@ def make_thing(config, meta_definition):
                 self._apply_rules(event_name)
 
         def _apply_rules(self, a_property_name, a_value=None):
-            for a_rule in self.participating_rules:
+            for a_rule in self.rules_that_use_this_thing:
                 a_rule.action(self, a_property_name, a_value)
 
         def set(self, a_dataclass):
