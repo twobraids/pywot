@@ -55,7 +55,7 @@ class RuleSystem(RequiredConfig):
 
     async def initialize(self):
         self.all_things = await self.get_all_things()
-        self.set_of_participating_things = set(self.all_things)
+        self.set_of_triggers_that_use_this_rule_system = set(self.all_things)
         logging.info("initialization complete")
 
     def find_in_all_things(self, name_of_thing):
@@ -68,7 +68,7 @@ class RuleSystem(RequiredConfig):
         logging.info("%s being added", a_rule.__class__.__name__)
         for a_thing in a_rule.things_that_trigger_this_rule.values():
             a_thing.rules_that_use_this_thing.append(a_rule)
-            self.set_of_participating_things.add(a_thing)
+            self.set_of_triggers_that_use_this_rule_system.add(a_thing)
 
     async def get_all_things(self):
         while True:
@@ -101,7 +101,7 @@ class RuleSystem(RequiredConfig):
 
     async def go(self):
         logging.debug("go")
-        for a_trigger in self.set_of_participating_things:
+        for a_trigger in self.set_of_triggers_that_use_this_rule_system:
             logging.info("starting trigger_dectection_loop for %s", a_trigger.name)
             try:
                 asyncio.ensure_future(a_trigger.trigger_detection_loop())
