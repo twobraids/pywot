@@ -185,16 +185,18 @@ def make_thing(config, thing_definition_as_dict):
     thing_definiton_as_dot_dict = DotDict(thing_definition_as_dict)
     # sanitize so that all keys are proper Python identifiers
     for a_key in list(thing_definiton_as_dot_dict.keys_breadth_first()):
-        if " " in a_key or "@" in a_key or "-" in a_key:
-            value = thing_definiton_as_dot_dict[a_key]
+        if any(a_character in a_key for a_character in string.punctuation if a_character != "_"):
+            a_value = thing_definiton_as_dot_dict[a_key]
             del thing_definiton_as_dot_dict[a_key]
             replacement_key = as_python_identifier(a_key)
+            thing_definiton_as_dot_dict[replacement_key] = a_value
 
-            thing_definiton_as_dot_dict[replacement_key] = value
+    class ThingProxy(Thing):
+        """This class serves as a proxy for a Thing that lives in a Things Gateway.
+        It makes the Things' Things Gateway properties accessible via dot notation:
+            thing.some_property.on = True
+        """
 
-    class ThingTalker(Thing):
-        """This class embodies the RuleSystem's implementation of a Thing from the Things Gateway.
-        It makes the Things' Things Gateway properties accessible via dot notation (thing.property)"""
         def __init__(self, config):
             self.config = config
             # thing_definiton_as_dot_dict comes from the json representation of the thing from the
@@ -228,13 +230,14 @@ def make_thing(config, thing_definition_as_dict):
         async def receive_websocket_messages(self, websocket):
             async for message_as_string in websocket:
                 message_as_dict = json.loads(message_as_string)
+                message_type_as_string = message_as_dict["messageType"]
                 message_data_as_dict = message_as_dict["data"]
-                if message_as_dict["messageType"] == "propertyStatus":
+                if message_type_as_string == "propertyStatus":
                     logging.info("property status %s.%s", self.name, message_as_dict)
                     self.process_property_status_message(message_data_as_dict)
-                elif message_as_dict["messageType"] == "event":
+                elif message_type_as_string == "event":
                     self.process_event_message(message_data_as_dict)
-                elif message_as_dict["messageType"] == "connected":
+                elif message_type_as_string == "connected":
                     self.connection_acknowledged = message_as_dict["data"]
 
         async def send_queued_messages(self, websocket):
@@ -272,6 +275,7 @@ def make_thing(config, thing_definition_as_dict):
                     # raise
 
         def subscribe_to_event(self, event_name):
+            """using this method is like sending a UDP message. We don't wait to see if it worked"""
             asyncio.ensure_future(self.async_subscribe_to_event(event_name))
 
         async def async_subscribe_to_event(self, event_name):
@@ -280,7 +284,7 @@ def make_thing(config, thing_definition_as_dict):
                     "messageType": "addEventSubscription",
                     "data": {event_name: {}},
                 }
-                logging.info("queue put %s: %s", self.name, event_subscription_command_as_dict)
+                logging.debug("queue put %s: %s", self.name, event_subscription_command_as_dict)
                 await self.command_queue.put(event_subscription_command_as_dict)
 
             except Exception as e:
@@ -332,14 +336,14 @@ def make_thing(config, thing_definition_as_dict):
         logging.debug("%s setting %s to %s", self.name, a_property_name, a_value)
         setattr(self, hidden_instance_name, a_value)
 
-    ThingTalker.hidden_property_names = {}
+    ThingProxy.hidden_property_names = {}
     for a_property_name in thing_definition_as_dict["properties"].keys():
         a_python_property_name = as_python_identifier(a_property_name)
         hidden_instance_name = f"__{a_python_property_name}"
-        ThingTalker.hidden_property_names[a_property_name] = hidden_instance_name
-        ThingTalker.hidden_property_names[a_python_property_name] = hidden_instance_name
+        ThingProxy.hidden_property_names[a_property_name] = hidden_instance_name
+        ThingProxy.hidden_property_names[a_python_property_name] = hidden_instance_name
         setattr(
-            ThingTalker,
+            ThingProxy,
             a_python_property_name,
             property(
                 partial(get_property, hidden_instance_name),
@@ -347,7 +351,7 @@ def make_thing(config, thing_definition_as_dict):
             ),
         )
 
-    the_thing = ThingTalker(config)
+    the_thing = ThingProxy(config)
 
     # find the websocket URI
     for a_link_dict in the_thing.thing_definition_as_dot_dict.links:
