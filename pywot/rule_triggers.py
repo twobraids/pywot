@@ -73,9 +73,9 @@ class HeartBeat(TimeBasedTrigger):
         self.period = self.duration_str_to_seconds(period_str)
 
     async def trigger_detection_loop(self):
-        logging.debug("Starting heartbeat timer %s", self.period)
+        logging.debug(f"Starting heartbeat timer {self.period}")
         while True:
-            logging.info("%s beats", self.name)
+            logging.info(f"{self.name} beats")
             self._apply_rules()
             await asyncio.sleep(self.period)
 
@@ -118,9 +118,9 @@ class DelayTimer(TimeBasedTrigger):
             self._apply_rules("timer_status", False)
 
         except asyncio.CancelledError:
-            logging.info("%s timer canceled", self.name)
+            logging.info(f"{self.name} timer canceled")
         finally:
-            logging.info("%s timer done", self.name)
+            logging.info(f"{self.name} timer done")
             self.suppress_cancel = False
 
     def ensure_the_timer_is_running(self):
@@ -128,14 +128,14 @@ class DelayTimer(TimeBasedTrigger):
             self.timer_task = asyncio.ensure_future(self._start_timer())
 
     def add_time(self):
-        logging.debug("%s adding %ss", self.name, self.timer_period_in_seconds)
+        logging.debug(f"{self.name} adding {self.timer_period_in_seconds}s")
         self.delay_timers.append(self.timer_period_in_seconds)
         self.ensure_the_timer_is_running()
 
     def cancel(self):
         logging.info("a cancel request has been made")
         if self.is_running and not self.suppress_cancel:
-            logging.info("%s cancel request", self.name)
+            logging.info(f"{self.name} cancel request")
             self.delay_timers = []
             self.timer_task.cancel()
             self.timer_task = None
@@ -178,7 +178,7 @@ class DurationTimer(TimeBasedTrigger):
     def set_state_and_apply_rules(self, output_state):
         try:
             self.output_state = output_state
-            logging.info("%s output_state, %s", self.name, output_state)
+            logging.info(f"{self.name} output_state, {output_state}")
             self._apply_rules("output_state", output_state)
         except Exception as e:
             logging.error(e)
@@ -189,30 +189,30 @@ class DurationTimer(TimeBasedTrigger):
         try:
             while True:
                 self.set_state_and_apply_rules(True)
-                logging.info("%s sleeping for %ss", self.name, self.on_period_in_seconds)
+                logging.info(f"{self.name} sleeping for {self.on_period_in_seconds}s")
                 await asyncio.sleep(self.on_period_in_seconds)
                 self.set_state_and_apply_rules(False)
                 if self.max_repeats <= repeat_counter:
                     break
                 repeat_counter += 1
-                logging.info("%s sleeping for %ss", self.name, self.off_period_in_seconds)
+                logging.info(f"{self.name} sleeping for {self.off_period_in_seconds}s")
                 await asyncio.sleep(self.off_period_in_seconds)
 
             self._apply_rules("timer_status", False)
 
         except asyncio.CancelledError:
-            logging.info("% timer canceled", self.name)
+            logging.info(f"{self.name} timer canceled")
         finally:
-            logging.info("%s timer done", self.name)
+            logging.info(f"{self.name} timer done")
 
     def start_timer(self):
         logging.info("the timer has started")
         self.timer_task = asyncio.ensure_future(self._start_timer())
 
     def cancel(self):
-        logging.info("%s cancel request", self.name)
+        logging.info(f"{self.name} cancel request")
         if self.is_running:
-            logging.info("%s doing cancel", self.name)
+            logging.info(f"{self.name} doing cancel")
             self.timer_task.cancel()
 
 
@@ -225,15 +225,15 @@ class AbsoluteTimeTrigger(TimeBasedTrigger):
         time_of_day_str,
     ):
         super(AbsoluteTimeTrigger, self).__init__(config, name)
-        self.trigger_time = datetime.strptime(time_of_day_str, "%H:%M:%S").time()
+        self.trigger_time = datetime.strptime(time_of_day_str, "%H:%M:%s").time()
 
     async def trigger_detection_loop(self):
-        logging.debug("Starting timer %s", self.trigger_time)
+        logging.debug(f"Starting timer {self.trigger_time}")
         while True:
             time_until_trigger_in_seconds = self.time_difference_in_seconds(
                 self.trigger_time, self.local_now().time()
             )
-            logging.debug("timer triggers in %sS", time_until_trigger_in_seconds)
+            logging.debug(f"timer triggers in {time_until_trigger_in_seconds}S")
             await asyncio.sleep(time_until_trigger_in_seconds)
             self._apply_rules("activated", True)
             await asyncio.sleep(1)
@@ -293,7 +293,7 @@ class DailySolarEventsTrigger(TimeBasedTrigger):
         event_list = []
         for an_event_name in self.event_name_list:
             if an_event_name not in self.all_possible_event_names:
-                error_message = "{}  is not a valid event name".format(an_event_name)
+                error_message = f"{an_event_name}  is not a valid event name"
                 logging.error(error_message)
                 continue
 
@@ -324,7 +324,7 @@ class DailySolarEventsTrigger(TimeBasedTrigger):
 
     async def trigger_event(self, now, time_delta, event_name):
         logging.info(
-            "%s in %s seconds (%s)", event_name, time_delta.total_seconds(), now + time_delta
+            f"{event_name} in {time_delta.total_seconds()} seconds ({now + time_delta})"
         )
         await asyncio.sleep(time_delta.total_seconds())
         self._apply_rules(event_name)
@@ -337,7 +337,7 @@ class DailySolarEventsTrigger(TimeBasedTrigger):
                 if event_datetime < now:
                     continue
                 time_delta = event_datetime - now
-                logging.info("new schedule %s in %s (%s)", event_name, time_delta, event_datetime)
+                logging.info(f"new schedule {event_name} in {time_delta} ({event_datetime})")
                 asyncio.ensure_future(self.trigger_event(now, time_delta, event_name))
 
             now = self.now_in_timezone(self.location.tz)
@@ -348,10 +348,7 @@ class DailySolarEventsTrigger(TimeBasedTrigger):
             )
             time_interval_until_next_schedule = next_schedule_time - now
             logging.info(
-                "%s: next day's schedule pulled in %s seconds (%s))",
-                self.name,
-                time_interval_until_next_schedule.total_seconds(),
-                next_schedule_time,
+                f"{self.name}: next day's schedule pulled in {time_interval_until_next_schedule.total_seconds()} seconds ({next_schedule_time}))"
             )
 
             await asyncio.sleep(time_interval_until_next_schedule.total_seconds())
