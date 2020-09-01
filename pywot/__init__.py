@@ -65,7 +65,7 @@ class WoTProperty:
                         logging.debug("cancel detected")
                         break
                     except Exception as e:
-                        logging.error("loading data fails: %s: %s", type(e), e)
+                        logging.error(f"loading data fails: {type(e)}: {e}")
                         # we'll be optimistic and prefer to retry if something goes wrong.
                         # while graceful falure is to be commended, there is also great value
                         # in spontaneous recovery.
@@ -104,9 +104,9 @@ class WoTProperty:
         if value_forwarder is None:
             value = Value(initial_value)
         else:
-            logging.debug("CREATING property {} with initial value {}".format(name, initial_value))
+            logging.debug(f"CREATING property {name} with initial value {initial_value}")
             value = Value(initial_value, value_forwarder=partial(value_forwarder, thing_instance))
-            logging.debug("new value {} is {}".format(name, value.last_value))
+            logging.debug(f"new value {name} is {value.last_value}")
         property_metadata = {
             "type": pytype_as_wottype(initial_value),
             "description": description,
@@ -143,7 +143,7 @@ class WoTThing(Thing, RequiredConfig):
             if not isinstance(getattr(self.__class__, attribute_name), WoTProperty):
                 continue
             wot_property_instance = getattr(self.__class__, attribute_name)
-            logging.debug("creating property %s", wot_property_instance.name)
+            logging.debug(f"creating property {wot_property_instance.name}")
             wot_property_instance.wot_property_creation_function(self)
             try:
                 self.property_fetching_coroutines.append(
@@ -198,9 +198,7 @@ class WoTServer(WebThingServer, RequiredConfig):
         io_loop = get_event_loop()
         for a_thing in self.things.get_things():
             logging.debug(
-                "    thing: %s with %s tasks",
-                a_thing.name,
-                len(a_thing.property_fetching_coroutines),
+                f"    thing: {a_thing.name} with {len(a_thing.property_fetching_coroutines)} tasks"
             )
             for a_coroutine in a_thing.property_fetching_coroutines:
                 # bind the coroutine to its associated thing
@@ -209,7 +207,7 @@ class WoTServer(WebThingServer, RequiredConfig):
                 a_thing_task = io_loop.create_task(a_thing_coroutine)
                 self._set_of_all_thing_tasks.add(a_thing_task)
                 logging.debug(
-                    "        created task: %s.%s", a_thing.name, a_coroutine.property_name
+                    f"        created task: {a_thing.name}.{a_coroutine.property_name}"
                 )
 
     def _cancel_and_stop_all_thing_tasks(self):
@@ -222,7 +220,7 @@ class WoTServer(WebThingServer, RequiredConfig):
 
     def run(self):
         try:
-            logging.debug("starting server {}".format(self.name))
+            logging.debug(f"starting server {}".format(self.name))
             self._create_and_start_all_thing_tasks()
             self.start()
         except KeyboardInterrupt:
@@ -250,7 +248,7 @@ logging_config.add_option(
 def log_config(config, prefix=""):
     for key, value in config.items():
         if isinstance(value, Mapping):
-            log_config(value, "{}.".format(key))
+            log_config(value, f"{key}.")
         else:
-            logging.info("%s%s: %s", prefix, key, to_str(value))
+            logging.info(f"{prefix}{key}: {to_str(value)}")
 
