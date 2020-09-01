@@ -220,7 +220,7 @@ class WoTServer(WebThingServer, RequiredConfig):
 
     def run(self):
         try:
-            logging.debug(f"starting server {}".format(self.name))
+            logging.debug(f"starting server {self.name}")
             self._create_and_start_all_thing_tasks()
             self.start()
         except KeyboardInterrupt:
