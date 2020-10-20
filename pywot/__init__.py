@@ -133,6 +133,7 @@ class WoTThing(Thing, RequiredConfig):
     def __init__(self, config, name, type_, description):
         self.config = config
         super(WoTThing, self).__init__(name, type_, description=description)
+        self.name = name
         self.property_fetching_coroutines = []
 
         # instantiate the WoT Properties by iterating through and executing the partial functions
