@@ -11,14 +11,14 @@ from configman import Namespace, RequiredConfig
 from configman.converters import to_str
 from functools import partial
 from itertools import filterfalse
-from collections import Mapping
+from collections.abc import Mapping
 import logging
 
 
 def pytype_as_wottype(example_value):
     """given a value of a basic type, return the string
     representing the type in the Things Gateway"""
-    return {int: "number", str: "string", float: "number", bool: "boolean", type(None): "string",}[
+    return {int: "number", str: "string", float: "number", bool: "boolean", type(None): "string", }[
         type(example_value)
     ]
 
