@@ -12,8 +12,8 @@ from time import sleep
 from contextlib import contextmanager
 from pytz import timezone
 
-from configman.dotdict import DotDict
-from configman import RequiredConfig, Namespace, configuration, class_converter
+from configmanners.dotdict import DotDict
+from configmanners import RequiredConfig, Namespace, configuration, class_converter
 from pywot import logging_config, log_config
 from pywot.thing_dataclass import create_dataclass
 

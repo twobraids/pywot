@@ -11,7 +11,7 @@ from pywot import (
     logging_config,
     log_config
 )
-from configman import (
+from configmanners import (
     configuration,
     Namespace,
 )
@@ -90,6 +90,7 @@ class ExampleDimmableLight(WoTThing):
 class MeddlesomeChild:
     """a chaos monkey that will randomly change the state of the lamp hardware by
     directly manipulating it - not through the Things Gateway."""
+
     def __init__(self, lamp_hardware):
         self._lamp_hardware = lamp_hardware
         self.chaos_task = asyncio.get_event_loop().create_task(

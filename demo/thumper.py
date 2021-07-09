@@ -10,7 +10,7 @@ from pywot import (
     logging_config,
     log_config
 )
-from configman import (
+from configmanners import (
     configuration,
     Namespace,
 )

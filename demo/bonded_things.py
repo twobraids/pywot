@@ -11,11 +11,11 @@ import async_timeout
 import logging
 import websockets
 
-from configman import (
+from configmanners import (
     Namespace,
     configuration
 )
-from configman.converters import (
+from configmanners.converters import (
     str_to_list,
 )
 from pywot import (
@@ -69,8 +69,8 @@ def change_property_for_all_things(config, master_thing_id, a_property, a_value)
     asyncio.ensure_future(
         asyncio.gather(*(
             change_property(config, a_thing_id, a_property, a_value)
-                for a_thing_id in config.list_of_thing_ids
-                if a_thing_id != master_thing_id
+            for a_thing_id in config.list_of_thing_ids
+            if a_thing_id != master_thing_id
         ))
     )
 

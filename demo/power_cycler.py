@@ -13,7 +13,7 @@ from asyncio import (
     CancelledError,
     sleep,
 )
-from configman import (
+from configmanners import (
     configuration,
     Namespace
 )

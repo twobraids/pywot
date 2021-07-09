@@ -12,7 +12,7 @@ import async_timeout
 import logging
 
 from datetime import datetime
-from configman import (
+from configmanners import (
     Namespace,
     configuration
 )

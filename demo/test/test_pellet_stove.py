@@ -14,7 +14,7 @@ from unittest.mock import (
 
 import pellet_stove
 
-from configman.dotdict import (
+from configmanners.dotdict import (
     DotDict
 )
 

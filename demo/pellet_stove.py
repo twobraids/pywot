@@ -35,7 +35,7 @@ import logging
 import asyncio
 import contextlib
 
-from configman import (
+from configmanners import (
     Namespace,
     configuration,
     class_converter
@@ -107,11 +107,11 @@ class PelletStove(WoTThing):
 
     def set_medium_linger(self, value_in_minutes):
         self.medium_linger_time_in_seconds = value_in_minutes * 60
-        logging.debug('medium_linger_time set to %s seconds',self.medium_linger_time_in_seconds)
+        logging.debug('medium_linger_time set to %s seconds', self.medium_linger_time_in_seconds)
 
     def set_low_linger(self, value_in_minutes):
         self.low_linger_time_in_seconds = value_in_minutes * 60
-        logging.debug('low_linger_time set to %s seconds',self.low_linger_time_in_seconds)
+        logging.debug('low_linger_time set to %s seconds', self.low_linger_time_in_seconds)
 
     thermostat_state = WoTThing.wot_property(
         name='thermostat_state',

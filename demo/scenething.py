@@ -22,7 +22,7 @@ from pywot import (
     logging_config,
     log_config
 )
-from configman import (
+from configmanners import (
     configuration,
     Namespace,
     class_converter,
@@ -114,7 +114,6 @@ class SceneThing(WoTThing):
                     print(json.dumps(all_things))
                     return all_things
 
-
     @staticmethod
     def quote_strings(a_value):
         if isinstance(a_value, str):
@@ -167,8 +166,8 @@ class SceneThing(WoTThing):
             await self.change_property(a_thing_id, 'on', True)
         await asyncio.gather(*(
             self.change_property(a_thing_id, a_property, a_value)
-                for a_property, a_value in a_change_set.items()
-                if a_property != 'on'
+            for a_property, a_value in a_change_set.items()
+            if a_property != 'on'
         ))
         # if the change_set has an 'on' property to turn something off, ensure that
         # turning the thing off is the last thing done.
@@ -238,13 +237,13 @@ class SceneThing(WoTThing):
         self.preserved_state = {}
         await asyncio.gather(*(
             self.capture_current_state(a_thing, a_change_set)
-                for a_thing, a_change_set in self.participants.items()
+            for a_thing, a_change_set in self.participants.items()
         ))
         # go through participtants setting their state
         logging.debug('start turn_on_participants')
         await asyncio.gather(*(
             self.change_properties_from_a_change_set(a_thing, change_set)
-                for a_thing, change_set in self.participants.items()
+            for a_thing, change_set in self.participants.items()
         ))
 
     async def restore_participants(self):
@@ -253,7 +252,7 @@ class SceneThing(WoTThing):
             self.learn = OFF
         await asyncio.gather(*(
             self.change_properties_from_a_change_set(a_thing, change_set)
-                for a_thing, change_set in self.preserved_state.items()
+            for a_thing, change_set in self.preserved_state.items()
         ))
 
 

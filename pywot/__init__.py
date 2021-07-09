@@ -7,8 +7,8 @@ from webthing import (
     WebThingServer,
 )
 from asyncio import sleep, gather, get_event_loop, CancelledError
-from configman import Namespace, RequiredConfig
-from configman.converters import to_str
+from configmanners import Namespace, RequiredConfig
+from configmanners.converters import to_str
 from functools import partial
 from itertools import filterfalse
 from collections.abc import Mapping
@@ -117,7 +117,7 @@ class WoTProperty:
 
 
 class WoTThing(Thing, RequiredConfig):
-    """This class mixes in the Configman configuration API into the Things Gateway Thing class
+    """This class mixes in the configmanners configuration API into the Things Gateway Thing class
     It also provides the mechanism that allows Thing properties to be specified during a derived
     classes loading time, but not instantiated until a derived class instance initialization. This
     allows Thing properties to work like traditional Python `properties`.  That, in turn,

@@ -11,7 +11,7 @@ import logging
 # real time phase and trend of the tide at a set of configurable locations.
 
 from datetime import datetime
-from configman import (
+from configmanners import (
     Namespace,
     RequiredConfig,
     configuration
@@ -84,8 +84,8 @@ async def get_tide_table(config, last_tide_in_the_past=None):
     # already passed in to this method
     if last_tide_in_the_past is None:
         logging.debug('{}, {} no previous tide information, guessing...'.format(
-                config.city_name,
-                config.state_code,
+            config.city_name,
+            config.state_code,
         ))
         last_tide_in_the_past = (
             "Low Tide" if future_tides_list[0][0] == "High Tide" else "High Tide",
@@ -309,11 +309,11 @@ base_required_config.add_option(
 )
 
 
-# this is a configman helper function that creates the configuration
+# this is a configmanners helper function that creates the configuration
 # structure for the number of tide lights requested.  It creates a new namespace
 # for each requested bulb and puts the tide_light_config into each one.  It
 # encapsulates the namespaces into an instance of an object called TideLightCollection.
-# This object has a class attribute called required_config.  Configman
+# This object has a class attribute called required_config.  configmanners
 # will automatically use that to fill out another layer of the structured
 # configuration document.
 def tide_config_setup(number_of_tide_lights):
