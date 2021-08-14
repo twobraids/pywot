@@ -9,6 +9,8 @@ from datetime import (
 
 
 class RuleTrigger:
+    __match_args__ = ('name',)
+
     def __init__(self, config, name):
         self.config = config
         self.name = name
@@ -32,7 +34,9 @@ class TimeBasedTrigger(RuleTrigger):
     @staticmethod
     def time_difference_in_seconds(start_time, end_time):
         # both as datetime.time objects
-        s_time = datetime(1900, 1, 1, start_time.hour, start_time.minute, start_time.second)
+        s_time = datetime(
+            1900, 1, 1, start_time.hour, start_time.minute, start_time.second
+        )
         e_time = datetime(1900, 1, 1, end_time.hour, end_time.minute, end_time.second)
         if e_time > s_time:
             e_time = e_time + timedelta(1)
@@ -156,8 +160,12 @@ class DurationTimer(TimeBasedTrigger):
         max_repeats=1,
     ):
         super(DurationTimer, self).__init__(config, name)
-        self.on_period_in_seconds = self.duration_str_to_seconds(on_period_in_seconds_str)
-        self.off_period_in_seconds = self.duration_str_to_seconds(off_period_in_seconds_str)
+        self.on_period_in_seconds = self.duration_str_to_seconds(
+            on_period_in_seconds_str
+        )
+        self.off_period_in_seconds = self.duration_str_to_seconds(
+            off_period_in_seconds_str
+        )
         self.max_repeats = max_repeats
         self.output_state = False
 
@@ -337,14 +345,18 @@ class DailySolarEventsTrigger(TimeBasedTrigger):
                 if event_datetime < now:
                     continue
                 time_delta = event_datetime - now
-                logging.info(f"new schedule {event_name} in {time_delta} ({event_datetime})")
+                logging.info(
+                    f"new schedule {event_name} in {time_delta} ({event_datetime})"
+                )
                 asyncio.ensure_future(self.trigger_event(now, time_delta, event_name))
 
             now = self.now_in_timezone(self.location.tz)
             next_day = (now + self.one_day).date()
 
             next_schedule_time = self.local_timezone.localize(
-                datetime(next_day.year, next_day.month, next_day.day, 1)  # next day at 1am
+                datetime(
+                    next_day.year, next_day.month, next_day.day, 1
+                )  # next day at 1am
             )
             time_interval_until_next_schedule = next_schedule_time - now
             logging.info(
