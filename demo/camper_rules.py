@@ -17,7 +17,7 @@ from pywot.rule_triggers import (
 class OzoneRule(Rule):
 
     def register_triggers(self):
-        self.heartbeat = HeartBeat(self.config, 'the_heart', "20s")
+        self.heartbeat = HeartBeat(self.config, "ozone_heartbeat", "20s")
         self.ozone_on_timer = DelayTimer(self.config, "ozone_on_timer", "5s")
         self.total_cycle_timer = DelayTimer(self.config, "total_cycle_timer", "2m")
         self.total_cycle_timer.add_time()
@@ -50,7 +50,7 @@ def main(config, rule_system):
     ozone_rule = OzoneRule(
         config,
         rule_system,
-        'ozone_generation_rule'
+        "ozone_generation_rule"
     )
     rule_system.add_rule(ozone_rule)
 
