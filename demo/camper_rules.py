@@ -9,7 +9,6 @@ from pywot.rules import (
     run_main,
 )
 from pywot.rule_triggers import (
-    RuleTrigger,
     HeartBeat,
     DelayTimer
 )
