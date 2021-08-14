@@ -26,23 +26,23 @@ class OzoneRule(Rule):
         return (self.heartbeat, self.ozone_on_timer, self.total_cycle_timer, self.end_of_cycle_timer)
 
     def action(self, the_trigger, the_event, new_value):
-        logging.info('OzoneRule action %s %s %s', the_trigger.name, the_event, new_value)
+        logging.debug('OzoneRule action %s %s %s', the_trigger.name, the_event, new_value)
 
         match(the_trigger):
             case self.heartbeat if self.total_cycle_timer.is_running:
                 self.ozone_switch.on = True
-                print(f'{datetime.now()} heartbeat - ozone on')
+                logging.info(f'{datetime.now()} heartbeat - ozone on')
                 self.ozone_on_timer.add_time()
             case self.ozone_on_timer:
                 self.ozone_switch.on = False
-                print(f'{datetime.now()} ozone_timer - ozone off')
+                logging.info(f'{datetime.now()} ozone_timer - ozone off')
             case self.total_cycle_timer:
                 self.ozone_on_timer.cancel()
                 self.ozone_switch.on = False
-                print(f'{datetime.now()} total_cycle_timer - ozone off')
+                logging.info(f'{datetime.now()} total_cycle_timer - ozone off')
                 self.end_of_cycle_timer.add_time()
             case self.end_of_cycle_timer:
-                print(f'{datetime.now()} end_of_cycle_timer - shutdown')
+                logging.info(f'{datetime.now()} end_of_cycle_timer - shutdown')
                 exit(0)
 
 
