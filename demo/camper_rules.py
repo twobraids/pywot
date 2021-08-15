@@ -17,18 +17,18 @@ from pywot.rule_triggers import (
 class OzoneRule(Rule):
 
     def register_triggers(self):
-        self.heartbeat = HeartBeat(self.config, "ozone_heartbeat", "20s")
-        self.ozone_on_timer = DelayTimer(self.config, "ozone_on_timer", "5s")
-        self.total_cycle_timer = DelayTimer(self.config, "total_cycle_timer", "2m")
+        self.ozone_frequency = HeartBeat(self.config, "ozone_frequency", "30m")
+        self.ozone_on_timer = DelayTimer(self.config, "ozone_on_timer", "90s")
+        self.total_cycle_timer = DelayTimer(self.config, "total_cycle_timer", "12h")
         self.total_cycle_timer.add_time()
         self.end_of_cycle_timer = DelayTimer(self.config, "end_of_cycle_timer", "10s")
-        return (self.heartbeat, self.ozone_on_timer, self.total_cycle_timer, self.end_of_cycle_timer)
+        return (self.ozone_frequency, self.ozone_on_timer, self.total_cycle_timer, self.end_of_cycle_timer)
 
     def action(self, the_trigger, the_event, new_value):
         logging.debug('OzoneRule action %s %s %s', the_trigger.name, the_event, new_value)
 
         match(the_trigger):
-            case self.heartbeat if self.total_cycle_timer.is_running:
+            case self.ozone_frequency if self.total_cycle_timer.is_running:
                 self.ozone_switch.on = True
                 logging.info(f'{datetime.now()} heartbeat - ozone on')
                 self.ozone_on_timer.add_time()
