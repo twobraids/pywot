@@ -20,7 +20,7 @@ class OzoneRule(Rule):
         self.ozone_frequency = HeartBeat(self.config, "ozone_frequency", "30m")
         self.ozone_on_timer = DelayTimer(self.config, "ozone_on_timer", "90s")
         self.total_cycle_timer = DelayTimer(self.config, "total_cycle_timer", "12h")
-        self.total_cycle_timer.add_time()
+        self.total_cycle_timer.start()
         self.end_of_cycle_timer = DelayTimer(self.config, "end_of_cycle_timer", "10s")
         return (self.ozone_frequency, self.ozone_on_timer, self.total_cycle_timer, self.end_of_cycle_timer)
 
@@ -31,7 +31,7 @@ class OzoneRule(Rule):
             case self.ozone_frequency if self.total_cycle_timer.is_running:
                 self.ozone_switch.on = True
                 logging.info(f'{datetime.now()} heartbeat - ozone on')
-                self.ozone_on_timer.add_time()
+                self.ozone_on_timer.start()
             case self.ozone_on_timer:
                 self.ozone_switch.on = False
                 logging.info(f'{datetime.now()} ozone_timer - ozone off')
@@ -39,7 +39,7 @@ class OzoneRule(Rule):
                 self.ozone_on_timer.cancel()
                 self.ozone_switch.on = False
                 logging.info(f'{datetime.now()} total_cycle_timer - ozone off')
-                self.end_of_cycle_timer.add_time()
+                self.end_of_cycle_timer.start()
             case self.end_of_cycle_timer:
                 logging.info(f'{datetime.now()} end_of_cycle_timer - shutdown')
                 exit(0)

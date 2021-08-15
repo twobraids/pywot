@@ -136,6 +136,8 @@ class DelayTimer(TimeBasedTrigger):
         self.delay_timers.append(self.timer_period_in_seconds)
         self.ensure_the_timer_is_running()
 
+    start = add_time
+
     def cancel(self):
         logging.info("a cancel request has been made")
         if self.is_running and not self.suppress_cancel:
